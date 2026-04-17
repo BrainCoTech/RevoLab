@@ -43,6 +43,16 @@ cd source/BrainCo_DexHand
 pip install -e .
 ```
 
+## Downloading Checkpoints
+
+We provide a script to easily download all the pretrained checkpoints from our OSS server. Run the following command from the repository root:
+
+```bash
+./scripts/download-checkpoints.sh
+```
+
+This will download the `*.pt` files directly into the repository's `checkpoints/` directory.
+
 ## Training and evaluation
 
 The environments register when `BrainCo_DexHand` is importable in your Isaac Lab Python environment.

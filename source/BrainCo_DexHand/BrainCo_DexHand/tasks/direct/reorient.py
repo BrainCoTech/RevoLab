@@ -200,10 +200,6 @@ class InHandManipulationEnv(DirectRLEnv):
         self.y_unit_tensor = torch.tensor([0, 1, 0], dtype=torch.float, device=self.device).repeat((self.num_envs, 1))
         self.z_unit_tensor = torch.tensor([0, 0, 1], dtype=torch.float, device=self.device).repeat((self.num_envs, 1))
 
-        # Debug print cadence for object position logging.
-        self._debug_print_interval = 60
-        self._debug_print_counter = 0
-
     def _setup_scene(self):
         # add hand, in-hand object, and goal object
         self.hand = Articulation(self.cfg.robot_cfg)
@@ -260,11 +256,6 @@ class InHandManipulationEnv(DirectRLEnv):
         self.hand.set_joint_position_target(
             self.cur_targets[:, self.actuated_dof_indices], joint_ids=self.actuated_dof_indices
         )
-
-        # Frozen-hand mode: always hold the reset posture.
-        # self.hand.set_joint_position_target(
-        #     self.prev_targets[:, self.actuated_dof_indices], joint_ids=self.actuated_dof_indices
-        # )
 
     def _get_observations(self) -> dict:
         if self.cfg.asymmetric_obs:
@@ -444,17 +435,6 @@ class InHandManipulationEnv(DirectRLEnv):
         self.object_velocities = self.object.data.root_vel_w
         self.object_linvel = self.object.data.root_lin_vel_w
         self.object_angvel = self.object.data.root_ang_vel_w
-
-        self._debug_print_counter += 1
-        if self._debug_print_counter % self._debug_print_interval == 0:
-            print(f"object_pos[env_0]: {self.object_pos[0].detach().cpu().tolist()}")
-            joint_pos_env0 = self.hand_dof_pos[0, self.actuated_dof_indices].detach().cpu()
-            joint_pos_deg_env0 = torch.rad2deg(joint_pos_env0)
-            print("hand_joint_pos[env_0]:")
-            for joint_name, joint_pos_rad, joint_pos_deg in zip(
-                self.actuated_joint_names, joint_pos_env0.tolist(), joint_pos_deg_env0.tolist(), strict=False
-            ):
-                print(f"  {joint_name}: {joint_pos_rad:.4f} rad ({joint_pos_deg:.2f} deg)")
 
     def compute_reduced_observations(self):
         # Per https://arxiv.org/pdf/1808.00177.pdf Table 2

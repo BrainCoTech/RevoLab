@@ -71,28 +71,24 @@ TIANJI_REVO3_RIGHT_CFG = ArticulationCfg(
     actuators={
         "tianji_arm_base": ImplicitActuatorCfg(
             joint_names_expr=["Joint[1-2]_R"],
-            # effort_limit_sim=108.0,
             stiffness=300.0,
             damping=45.0,
             friction=1.0,
         ),
         "tianji_arm_mid": ImplicitActuatorCfg(
             joint_names_expr=["Joint[3-4]_R"],
-            # effort_limit_sim=66.0,
             stiffness=220.0,
             damping=30.0,
             friction=1.0,
         ),
         "tianji_arm_wrist": ImplicitActuatorCfg(
             joint_names_expr=["Joint[5-7]_R"],
-            # effort_limit_sim=18.0,
             stiffness=50.0,
             damping=15.0,
             friction=0.5,
         ),
         "brainco_hand": ImplicitActuatorCfg(
             joint_names_expr=["right_.*_joint"],
-            # effort_limit_sim=1.0,
             stiffness=3.0,
             damping=0.1,
             friction=0.01,

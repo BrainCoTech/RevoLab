@@ -79,52 +79,6 @@ class BrainCoHandEnvCfg(DirectRLEnvCfg):
         'right_thumb_DIP_Link',
     ]
 
-    # in-hand object
-    # object_cfg: RigidObjectCfg = RigidObjectCfg(
-    #     prim_path="/World/envs/env_.*/object",
-    #     spawn=sim_utils.UsdFileCfg(
-    #         usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Blocks/DexCube/dex_cube_instanceable.usd",
-    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(
-    #             kinematic_enabled=False,
-    #             disable_gravity=False,
-    #             enable_gyroscopic_forces=True,
-    #             solver_position_iteration_count=8,
-    #             solver_velocity_iteration_count=0,
-    #             sleep_threshold=0.005,
-    #             stabilization_threshold=0.0025,
-    #             max_depenetration_velocity=1000.0,
-    #         ),
-    #         mass_props=sim_utils.MassPropertiesCfg(density=400.0),
-    #         scale=(1, 1, 1),
-    #     ),
-    #     init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, -0.11, 0.56), rot=(1.0, 0.0, 0.0, 0.0)),
-    # )
-    # object_cfg: RigidObjectCfg = RigidObjectCfg(
-    #     prim_path="/World/envs/env_.*/object",
-    #     spawn=sim_utils.CylinderCfg(
-    #         radius=0.035,
-    #         height=0.07,
-    #         axis="Z",
-    #         visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.7, 0.7, 0.7)),
-    #         physics_material=RigidBodyMaterialCfg(
-    #             static_friction=1.0,
-    #             dynamic_friction=1.0,
-    #         ),
-    #         rigid_props=sim_utils.RigidBodyPropertiesCfg(
-    #             kinematic_enabled=False,
-    #             disable_gravity=False,
-    #             enable_gyroscopic_forces=True,
-    #             solver_position_iteration_count=8,
-    #             solver_velocity_iteration_count=0,
-    #             sleep_threshold=0.005,
-    #             stabilization_threshold=0.0025,
-    #             max_depenetration_velocity=1000.0,
-    #         ),
-    #         mass_props=sim_utils.MassPropertiesCfg(density=400.0),
-    #         collision_props=sim_utils.CollisionPropertiesCfg(),
-    #     ),
-    #     init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, -0.11, 0.56), rot=(1.0, 0.0, 0.0, 0.0)),
-    # )
     object_cfg: RigidObjectCfg = RigidObjectCfg(
         prim_path="/World/envs/env_.*/object",
         spawn=sim_utils.CylinderCfg(

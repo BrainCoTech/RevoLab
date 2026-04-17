@@ -63,7 +63,7 @@ Examples:
 python -c "import BrainCo_DexHand"
 ```
 
-Use the training or play scripts from your Isaac Lab checkout with one of the public task IDs above. Training commands:
+Use the training or play scripts with one of the task IDs above. Training commands:
 
 ```bash
 python  scripts/rsl_rl/train.py --task BrainCo-Direct-Revo3-Repose-Cube-v0 --num_envs 8192 --headless

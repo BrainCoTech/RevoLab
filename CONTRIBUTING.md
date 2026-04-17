@@ -51,9 +51,7 @@ and coordinated disclosure.
 - Do not modify third-party source headers without a corresponding update to
   `THIRD_PARTY_NOTICES.md`.
 
-## Maintainers
-
-This project is maintained by the BrainCo Robotics team.
-
-- General contact: opensource@brainco.tech
-- Security contact: security@brainco.tech
+## Support
+Need help? Reach out through the following channels:
+- Submit a ticket: [https://web.static.brainco.cn/work-order](https://web.static.brainco.cn/work-order)
+- GitHub: [https://github.com/BrainCoTech](https://github.com/BrainCoTech)

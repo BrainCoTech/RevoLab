@@ -20,5 +20,5 @@ outputs/
 *.log
 .codex
 
-checkpoints/exported/
 upload-oss.sh
+checkpoints/

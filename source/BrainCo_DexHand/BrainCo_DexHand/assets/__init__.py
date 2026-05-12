@@ -7,4 +7,5 @@
 
 from .revo3_repose import *
 from .revo3_reorient import *
+from .revotron_bimanual_revo3 import *
 from .tianji_revo3_right import *

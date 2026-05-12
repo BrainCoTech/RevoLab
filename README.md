@@ -5,6 +5,7 @@ Isaac Lab environments, robot assets, and pretrained checkpoints for BrainCo dex
 - Revo3 in-hand repose
 - Revo3 in-hand reorientation
 - Revo3 right-hand lift
+- Revo3 bimanual dynamic handover
 
 ## Included Tasks
 
@@ -13,14 +14,17 @@ Isaac Lab environments, robot assets, and pretrained checkpoints for BrainCo dex
 | Revo3 | Direct | `BrainCo-Direct-Revo3-Repose-Cube-v0` | `checkpoints/BrainCo-Direct-Revo3-Repose-Cube-v0.pt` | <img src="image/BrainCo-Direct-Revo3-Repose-Cube-v0.gif" width="320"/> |
 | Revo3 | Direct | `BrainCo-Direct-Revo3-Reorient-Cylinder-v0` | `checkpoints/BrainCo-Direct-Revo3-Reorient-Cylinder-v0.pt` | <img src="image/BrainCo-Direct-Revo3-Reorient-Cylinder-v0.gif" width="320"/> |
 | Revo3 | Dexsuite | `BrainCo-Dexsuite-Revo3-Right-Lift-v0` | `checkpoints/BrainCo-Dexsuite-Revo3-Right-Lift-v0.pt` | <img src="image/BrainCo-Dexsuite-Revo3-Right-Lift-v0.gif" width="320"/> |
+| Revo3 bimanual | Dynamic Handover | `BrainCo-Dynamic-Handover-Revo3-Cube-v0` | `checkpoints/dynamic_handover/BrainCo_allegro.pth` | <img src="image/BrainCo-Dynamic-Handover-Revo3-Cube-v0.gif" width="320"/> |
 
 ## Repository Layout
 
 ```text
 BrainCo-IsaacLab/
+├── assets/                 # Dynamic handover USD/URDF assets
 ├── checkpoints/            # Pretrained checkpoints
 ├── image/                  # Task demo GIFs
-├── script/rsl_rl           # RL training and evaluation scripts
+├── scripts/rsl_rl          # RSL-RL training and evaluation scripts
+├── scripts/rl_games        # RL-Games training and evaluation scripts
 ├── source/BrainCo_DexHand/ # Isaac Lab extension package
 └── usd/                    # Isaac Sim / Isaac Lab USD assets
 ```
@@ -86,6 +90,44 @@ python  scripts/rsl_rl/play.py --task BrainCo-Direct-Revo3-Reorient-Cylinder-v0 
 python  scripts/rsl_rl/play.py --task BrainCo-Dexsuite-Revo3-Right-Lift-Play-v0 --checkpoint checkpoints/BrainCo-Dexsuite-Revo3-Right-Lift-v0.pt --num_envs 1
 ```
 
+### Dynamic handover
+
+Dynamic handover uses the bimanual Revo3 asset and RL-Games checkpoint. Run from the repository root with the Isaac Lab Python environment activated:
+
+```bash
+python scripts/rl_games/play_dynamic_handover.py \
+  --task BrainCo-Dynamic-Handover-Revo3-Cube-Play-v0 \
+  --num_envs 1 \
+  --checkpoint checkpoints/dynamic_handover/BrainCo_allegro.pth
+```
+
+To manually switch toss direction during play, pass a command file:
+
+```bash
+python scripts/rl_games/play_dynamic_handover.py \
+  --task BrainCo-Dynamic-Handover-Revo3-Cube-Play-v0 \
+  --num_envs 1 \
+  --checkpoint checkpoints/dynamic_handover/BrainCo_allegro.pth \
+  --command-file /tmp/handover_command.txt
+```
+
+Then update the command from another terminal:
+
+```bash
+echo 'right_throw' > /tmp/handover_command.txt
+echo 'left_throw' > /tmp/handover_command.txt
+```
+
+For a short training smoke test:
+
+```bash
+python scripts/rl_games/train_dynamic_handover.py \
+  --task BrainCo-Dynamic-Handover-Revo3-Cube-v0 \
+  --num_envs 32 \
+  --max_iterations 1 \
+  --headless
+```
+
 ## Sim-to-real
 Work in progress: current tasks are trained with `ImplicitActuatorCfg`, where the actuator dynamics are handled internally by the simulator. In the next release, we will update the identified dynamic parameters to improve sim-to-real performance.
 
@@ -95,6 +137,7 @@ Additional tasks and sim-to-real scripts will be released in future updates.
 
 - The Revo3 tasks IDs follow the `BrainCo-<framework>-<robot>-<task>-v0` naming convention.
 - Checkpoints are provided for reproducibility and evaluation.
+- Dynamic handover play supports command-file overrides: `right_throw`, `left_throw`, `right_hold`, and `left_hold`.
 
 ## License
 

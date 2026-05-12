@@ -6,4 +6,5 @@
 """Register the public BrainCo Isaac Lab tasks."""
 
 from .direct import brainco  # noqa: F401
+from .manager_based import dynamic_handover  # noqa: F401
 from .manager_based.dexsuite import Revo3  # noqa: F401

@@ -21,4 +21,6 @@ outputs/
 .codex
 
 upload-oss.sh
-checkpoints/
+checkpoints/*
+!checkpoints/dynamic_handover/
+!checkpoints/dynamic_handover/BrainCo_allegro.pth

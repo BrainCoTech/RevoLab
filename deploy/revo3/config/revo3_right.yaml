@@ -1,0 +1,117 @@
+# Revo3 right-hand deployment profile.
+#
+# Policy order comes from Isaac Lab export / ONNX action order.
+# SDK order is the Revo3 motor order used by bc-stark-sdk.
+
+robot: revo3
+hand: right
+
+action_scale: 0.041667
+default_rate_hz: 20.0
+
+sdk:
+  package: bc-stark-sdk
+  version: 1.4.5
+  protocol: modbus
+  baudrate: 5000000
+  slave_id: 126
+  auto_detect: true
+
+mit:
+  kp: 1.0
+  kd: 0.1
+  effort_ma: 0.0
+
+sim2real_joint_offset:
+  order: sdk_joint_order
+  values:
+    - 0.0
+    - 0.0
+    - 0.3
+    - 0.3
+    - 0.0
+    - 0.0
+    - 0.3
+    - 0.3
+    - 0.0
+    - 0.0
+    - 0.3
+    - 0.3
+    - 0.0
+    - 0.0
+    - 0.3
+    - 0.3
+    - 0.0
+    - 0.3
+    - 0.3
+    - 0.0
+    - -0.2
+
+policy_joint_order:
+  - right_index_MPR_joint
+  - right_little_MPR_joint
+  - right_middle_MPR_joint
+  - right_ring_MPR_joint
+  - right_thumb_CMP_joint
+  - right_index_MCP_joint
+  - right_little_MCP_joint
+  - right_middle_MCP_joint
+  - right_ring_MCP_joint
+  - right_thumb_CMR_joint
+  - right_index_PIP_joint
+  - right_little_PIP_joint
+  - right_middle_PIP_joint
+  - right_ring_PIP_joint
+  - right_thumb_MCP_joint
+  - right_index_DIP_joint
+  - right_little_DIP_joint
+  - right_middle_DIP_joint
+  - right_ring_DIP_joint
+  - right_thumb_PIP_joint
+  - right_thumb_DIP_joint
+
+sdk_joint_order:
+  - right_little_MPR_joint
+  - right_little_MCP_joint
+  - right_little_PIP_joint
+  - right_little_DIP_joint
+  - right_ring_MPR_joint
+  - right_ring_MCP_joint
+  - right_ring_PIP_joint
+  - right_ring_DIP_joint
+  - right_middle_MPR_joint
+  - right_middle_MCP_joint
+  - right_middle_PIP_joint
+  - right_middle_DIP_joint
+  - right_index_MPR_joint
+  - right_index_MCP_joint
+  - right_index_PIP_joint
+  - right_index_DIP_joint
+  - right_thumb_MCP_joint
+  - right_thumb_PIP_joint
+  - right_thumb_DIP_joint
+  - right_thumb_CMP_joint
+  - right_thumb_CMR_joint
+
+joint_limits:
+  right_index_MPR_joint:  {lower: -0.261800, upper:  0.261800}
+  right_little_MPR_joint: {lower: -0.261800, upper:  0.261800}
+  right_middle_MPR_joint: {lower: -0.261800, upper:  0.261800}
+  right_ring_MPR_joint:   {lower: -0.261800, upper:  0.261800}
+  right_thumb_CMP_joint:  {lower:  0.000000, upper:  1.919900}
+  right_index_MCP_joint:  {lower:  0.000000, upper:  1.483500}
+  right_little_MCP_joint: {lower:  0.000000, upper:  1.483500}
+  right_middle_MCP_joint: {lower:  0.000000, upper:  1.483500}
+  right_ring_MCP_joint:   {lower:  0.000000, upper:  1.483500}
+  right_thumb_CMR_joint:  {lower:  0.000000, upper:  2.007100}
+  right_index_PIP_joint:  {lower:  0.000000, upper:  1.483500}
+  right_little_PIP_joint: {lower:  0.000000, upper:  1.483500}
+  right_middle_PIP_joint: {lower:  0.000000, upper:  1.483500}
+  right_ring_PIP_joint:   {lower:  0.000000, upper:  1.483500}
+  right_thumb_MCP_joint:  {lower:  0.000000, upper:  0.872700}
+  right_index_DIP_joint:  {lower:  0.000000, upper:  1.483500}
+  right_little_DIP_joint: {lower:  0.000000, upper:  1.483500}
+  right_middle_DIP_joint: {lower:  0.000000, upper:  1.483500}
+  right_ring_DIP_joint:   {lower:  0.000000, upper:  1.483500}
+  right_thumb_PIP_joint:  {lower:  0.000000, upper:  1.483500}
+  right_thumb_DIP_joint:  {lower:  0.000000, upper:  1.483500}

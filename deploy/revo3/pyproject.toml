@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "revo3-deploy"
+version = "0.1.0"
+description = "ROS-free Revo3 sim-to-real deployment runtime for RevoLab policies"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy<2.0.0",
+  "onnxruntime>=1.16",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+hardware = [
+  "bc-stark-sdk==1.4.5",
+]
+
+[project.scripts]
+revo3-run-policy = "revo3_deploy.cli.run_policy:main"
+revo3-export-policy = "revo3_deploy.cli.export_policy:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["revo3_deploy*"]
+
+[tool.setuptools.package-data]
+revo3_deploy = ["py.typed"]

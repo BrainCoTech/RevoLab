@@ -1,0 +1,24 @@
+Metadata-Version: 2.4
+Name: BrainCo_DexHand
+Version: 0.1.0
+Summary: Public Isaac Lab environments and checkpoints for BrainCo Revo hands.
+Home-page: 
+Author: BrainCo
+Maintainer: BrainCo
+License: MIT
+Keywords: brainco,isaaclab,dexterous-manipulation,reinforcement-learning,revo
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Isaac Sim :: 4.5.0
+Classifier: Isaac Sim :: 5.0.0
+Requires-Python: >=3.10
+Requires-Dist: psutil
+Dynamic: author
+Dynamic: classifier
+Dynamic: keywords
+Dynamic: license
+Dynamic: maintainer
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

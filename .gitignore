@@ -1,24 +1,3 @@
-__pycache__/
-*.py[cod]
-*.so
-.DS_Store
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-.venv/
-venv/
-env/
-dist/
-build/
-*.egg-info/
-.idea/
-.vscode/
-logs/
-outputs/
-*.log
-.codex
-
-upload-oss.sh
-checkpoints/
+# Intentionally left without ignore rules on the test branch.
+# This branch tracks local project artifacts such as checkpoints, logs,
+# outputs, caches, and generated package metadata for backup/sharing.

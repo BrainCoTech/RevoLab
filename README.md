@@ -25,6 +25,8 @@ BrainCo-IsaacLab/
 └── usd/                    # Isaac Sim / Isaac Lab USD assets
 ```
 
+The `usd/` directory contains only the USD assets required to run the public tasks.
+
 ## Requirements
 
 - Python 3.10+

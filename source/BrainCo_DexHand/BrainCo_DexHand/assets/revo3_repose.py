@@ -42,7 +42,7 @@ BRAINCO_CFG = ArticulationCfg(
         rot=(0.5, 0.5, -0.5, 0.5),
         joint_pos={
             # Thumb
-            "right_thumb_CMP_joint": -0.43,
+            "right_thumb_CMP_joint": 0.43,
             "right_thumb_CMR_joint": 1.57,
             "right_thumb_MCP_joint": 0.0,
             "right_thumb_PIP_joint": 0.13,

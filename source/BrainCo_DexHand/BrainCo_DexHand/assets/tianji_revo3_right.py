@@ -24,7 +24,7 @@ TIANJI_REVO3_RIGHT_CFG = ArticulationCfg(
             max_depenetration_velocity=1000.0,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=False,
+            enabled_self_collisions=True,
             solver_position_iteration_count=32,
             solver_velocity_iteration_count=1,
             sleep_threshold=0.005,
@@ -45,7 +45,7 @@ TIANJI_REVO3_RIGHT_CFG = ArticulationCfg(
             "Joint6_R": -0.7,
             "Joint7_R": 0.0,
             # Revo3 right hand joints.
-            "right_thumb_CMP_joint": -0.73,
+            "right_thumb_CMP_joint": 0.43,
             "right_thumb_CMR_joint": 1.57,
             "right_thumb_MCP_joint": 0.0,
             "right_thumb_PIP_joint": 0.13,

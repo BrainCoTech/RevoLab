@@ -1,0 +1,25 @@
+# Deploy metadata emitted next to policy.onnx.
+export:
+  stage: stage2
+  source_checkpoint: ""
+artifacts:
+  onnx: policy.onnx
+io_contract:
+  inputs:
+    - name: obs
+      shape: [B, 126]
+      dtype: float32
+    - name: proprio_hist
+      shape: [B, 30, 42]
+      dtype: float32
+  outputs:
+    - name: action
+      shape: [B, 21]
+      dtype: float32
+  action_semantics: delta
+  action_formula: cur_targets = prev_targets + action_scale * action, then clamp to joint limits
+  action_clip: [-1.0, 1.0]
+  policy_rate_hz: 20.0
+  joint_order_right_hand: []
+normalization:
+  baked_in_onnx: true

@@ -57,7 +57,7 @@ We provide a script to easily download all the pretrained checkpoints from our O
 
 This will download the `*.pt` files directly into the repository's `checkpoints/` directory.
 
-## Training and evaluation
+## RSL-RL Training and Evaluation
 
 The environments register when `BrainCo_DexHand` is importable in your Isaac Lab Python environment.
 
@@ -90,9 +90,9 @@ python  scripts/rsl_rl/play.py --task BrainCo-Direct-Revo3-Reorient-Cylinder-v0 
 python  scripts/rsl_rl/play.py --task BrainCo-Dexsuite-Revo3-Right-Lift-Play-v0 --checkpoint checkpoints/BrainCo-Dexsuite-Revo3-Right-Lift-v0.pt --num_envs 1
 ```
 
-### Dynamic handover
+## RL-Games Dynamic Handover
 
-Dynamic handover uses the bimanual Revo3 asset and RL-Games checkpoint. Run from the repository root with the Isaac Lab Python environment activated:
+Dynamic handover uses the bimanual Revo3 asset and an RL-Games checkpoint. Run from the repository root with the Isaac Lab Python environment activated:
 
 ```bash
 python scripts/rl_games/play_dynamic_handover.py \
@@ -137,7 +137,7 @@ Additional tasks and sim-to-real scripts will be released in future updates.
 
 - The Revo3 tasks IDs follow the `BrainCo-<framework>-<robot>-<task>-v0` naming convention.
 - Checkpoints are provided for reproducibility and evaluation.
-- Dynamic handover play supports command-file overrides: `right_throw`, `left_throw`, `right_hold`, and `left_hold`.
+- Dynamic handover play supports command-file throw direction overrides: `right_throw` and `left_throw`.
 
 ## License
 

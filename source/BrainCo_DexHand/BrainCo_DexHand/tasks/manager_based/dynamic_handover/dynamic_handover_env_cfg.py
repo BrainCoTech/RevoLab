@@ -55,7 +55,18 @@ HANDOVER_Y_CORRIDOR_MAX_PROGRESS = 0.85
 class DynamicHandoverSceneCfg(InteractiveSceneCfg):
     ground = AssetBaseCfg(
         prim_path="/World/ground",
-        spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)),
+        spawn=sim_utils.CuboidCfg(
+            size=(100.0, 100.0, 0.02),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            physics_material=sim_utils.RigidBodyMaterialCfg(
+                static_friction=1.0,
+                dynamic_friction=1.0,
+            ),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.3, 0.3, 0.3)),
+        ),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, -0.01)),
+        collision_group=-1,
     )
 
     robot: ArticulationCfg = make_revotron_bimanual_revo3_cfg(
@@ -232,7 +243,7 @@ class EventCfg:
         params={
             "asset_cfg": SceneEntityCfg("object"),
             "command_name": "handover",
-            "world_pos_offset": (0.04, 0.0, 0.10),
+            "world_pos_offset": (0.02, 0.0, 0.010),
             "mirror_world_x_by_source": False,
         },
     )
@@ -243,7 +254,7 @@ class EventCfg:
             "asset_cfg": SceneEntityCfg("goal"),
             "command_name": "handover",
             "local_pos": (0.0, 0.0, 0.0),
-            "world_pos_offset": (0.10, 0.0, 0.04),
+            "world_pos_offset": (0.0, 0.0, 0.05),
             "world_pos_offset_in_body_frame": False,
             "mirror_world_x_by_source": False,
             "local_quat": (1.0, 0.0, 0.0, 0.0),
@@ -261,7 +272,7 @@ class CubeEventCfg(EventCfg):
             "asset_cfg": SceneEntityCfg("object"),
             "command_name": "handover",
             "local_pos": (0.0, 0.0, 0.0),
-            "world_pos_offset": (0.04, 0.0, 0.010),
+            "world_pos_offset": (0.02, 0.0, 0.010),
             "mirror_world_x_by_source": False,
             "local_quat": (1.0, 0.0, 0.0, 0.0),
             "position_noise": 0.0,
@@ -281,7 +292,7 @@ class RewardsCfg:
         func=mdp.object_towards_receiver_palm_velocity_bonus, weight=0.7, params={"command_name": "handover"}
     )
     close_to_receiver_palm = RewTerm(
-        func=mdp.object_close_to_receiver_palm_reward, weight=0.75, params={"sharpness": 10.0, "command_name": "handover"}
+        func=mdp.object_close_to_receiver_palm_reward, weight=0.55, params={"sharpness": 10.0, "command_name": "handover"}
     )
     receiver_palm_towards_object = RewTerm(
         func=mdp.receiver_palm_towards_object_bonus,
@@ -290,8 +301,8 @@ class RewardsCfg:
     )
     receiver_finger_contacts = RewTerm(
         func=mdp.receiver_multi_finger_surface_contacts_reward,
-        weight=0.7,
-        params={"command_name": "handover", "surface_threshold": 0.028, "min_fingers": 2},
+        weight=0.85,
+        params={"command_name": "handover", "surface_threshold": 0.035, "min_fingers": 2},
     )
     object_y_velocity = RewTerm(
         func=mdp.object_y_velocity_bonus,
@@ -310,7 +321,26 @@ class RewardsCfg:
             "release_distance": HANDOVER_RETURN_RELEASE_DISTANCE,
             "sharpness": 4.0,
             "arm_weight": 4.0,
-            "finger_weight": 1.5,
+            "finger_weight": 0.8,
+        },
+    )
+    receiver_arm_return_after_catch = RewTerm(
+        func=mdp.receiver_arm_return_to_default_after_catch_reward,
+        weight=0.8,
+        params={
+            "command_name": "handover",
+            "surface_threshold": 0.035,
+            "min_fingers": 3,
+            "sharpness": 4.0,
+        },
+    )
+    source_finger_action_rate = RewTerm(
+        func=mdp.source_finger_action_rate_excess_penalty,
+        weight=-0.005,
+        params={
+            "command_name": "handover",
+            "release_distance": HANDOVER_RETURN_RELEASE_DISTANCE,
+            "action_rate_threshold": 0.12,
         },
     )
     hand_separation = RewTerm(
@@ -345,7 +375,7 @@ class DynamicHandoverEnvCfg(ManagerBasedRLEnvCfg):
 
     def __post_init__(self):
         self.decimation = 3
-        self.episode_length_s = 0.75
+        self.episode_length_s = 1.25
         self.viewer.eye = (2.4, -2.7, 1.9)
         self.viewer.lookat = (0.0, -0.68, 1.1)
         self.sim.dt = 1 / 120
@@ -357,6 +387,7 @@ class DynamicHandoverEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physx.enable_ccd = True
         self.sim.physx.bounce_threshold_velocity = 0.2
         self.sim.physx.gpu_max_rigid_contact_count = 2**23
+        self.sim.physx.gpu_max_rigid_patch_count = 4 * 5 * 2**15
 
 
 @configclass

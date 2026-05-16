@@ -365,51 +365,6 @@ def object_y_velocity_bonus(
     return torch.where(active, torch.clamp(signed_y_velocity, -reward_clip, reward_clip), torch.zeros_like(signed_y_velocity)) * throw_gate
 
 
-def receiver_finger_surface_contacts_reward(
-    env: ManagerBasedRLEnv,
-    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
-    command_name: str = "handover",
-    robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    surface_threshold: float = 0.028,
-    object_half_extents: tuple[float, float, float] = (0.03, 0.03, 0.025),
-) -> torch.Tensor:
-    """Reward the receiver fingertips for forming a catch pose around the cube surface."""
-    obj: RigidObject = env.scene[object_cfg.name]
-    command = _handover_command(env, command_name)
-    source_is_left = command[:, 0] > 0.0
-    throw_gate = (command[:, 1] > 0.0).float()
-    robot: Articulation = env.scene[robot_cfg.name]
-
-    right_tip_names = (
-        "right_thumb_tip_Link",
-        "right_index_tip_Link",
-        "right_middle_tip_Link",
-        "right_ring_tip_Link",
-    )
-    left_tip_names = (
-        "left_thumb_tip_Link",
-        "left_index_tip_Link",
-        "left_middle_tip_Link",
-        "left_ring_tip_Link",
-    )
-
-    right_tip_positions = [_first_matching_body_pos_w(robot, (body_name,)) for body_name in right_tip_names]
-    left_tip_positions = [_first_matching_body_pos_w(robot, (body_name,)) for body_name in left_tip_names]
-    right_tips = torch.stack(right_tip_positions, dim=1)
-    left_tips = torch.stack(left_tip_positions, dim=1)
-    receiver_tips = torch.where(source_is_left.view(-1, 1, 1), right_tips, left_tips)
-
-    object_quat = obj.data.root_quat_w.unsqueeze(1).expand(-1, receiver_tips.shape[1], -1)
-    tip_pos_obj = math_utils.quat_apply_inverse(object_quat, receiver_tips - obj.data.root_pos_w.unsqueeze(1))
-    half_extents = torch.tensor(object_half_extents, device=env.device, dtype=receiver_tips.dtype).view(1, 1, 3)
-    q = torch.abs(tip_pos_obj) - half_extents
-    outside_distance = torch.norm(torch.clamp(q, min=0.0), dim=-1)
-    inside_distance = torch.clamp(torch.max(q, dim=-1).values, max=0.0)
-    surface_distance = torch.abs(outside_distance + inside_distance)
-    surface_reward = torch.clamp(surface_threshold - surface_distance, min=0.0) / max(surface_threshold, 1.0e-6)
-    return surface_reward.mean(dim=-1) * throw_gate
-
-
 def receiver_multi_finger_surface_contacts_reward(
     env: ManagerBasedRLEnv,
     object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
@@ -431,12 +386,14 @@ def receiver_multi_finger_surface_contacts_reward(
         "right_index_tip_Link",
         "right_middle_tip_Link",
         "right_ring_tip_Link",
+        "right_little_tip_Link",
     )
     left_tip_names = (
         "left_thumb_tip_Link",
         "left_index_tip_Link",
         "left_middle_tip_Link",
         "left_ring_tip_Link",
+        "left_little_tip_Link",
     )
 
     right_tip_positions = [_first_matching_body_pos_w(robot, (body_name,)) for body_name in right_tip_names]
@@ -461,6 +418,78 @@ def receiver_multi_finger_surface_contacts_reward(
     )
     contact_quality = (per_finger_reward * contact_mask.float()).sum(dim=-1) / contact_count.clamp_min(1).float()
     return normalized_count * contact_quality * enough_contacts.float() * throw_gate
+
+
+def receiver_arm_return_to_default_after_catch_reward(
+    env: ManagerBasedRLEnv,
+    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    command_name: str = "handover",
+    robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    surface_threshold: float = 0.035,
+    min_fingers: int = 3,
+    sharpness: float = 4.0,
+    right_arm_joint_names: tuple[str, ...] = (
+        "Joint1_R",
+        "Joint2_R",
+        "Joint3_R",
+        "Joint4_R",
+        "Joint5_R",
+        "Joint6_R",
+        "Joint7_R",
+    ),
+    left_arm_joint_names: tuple[str, ...] = (
+        "Joint1_L",
+        "Joint2_L",
+        "Joint3_L",
+        "Joint4_L",
+        "Joint5_L",
+        "Joint6_L",
+        "Joint7_L",
+    ),
+    object_half_extents: tuple[float, float, float] = (0.03, 0.03, 0.025),
+) -> torch.Tensor:
+    """Reward the receiver-side arm returning to default once 3+ fingertips catch the cube."""
+    obj: RigidObject = env.scene[object_cfg.name]
+    command, source_is_left, throw_gate, _, robot = _source_receiver_state(env, command_name, robot_cfg)
+
+    right_tip_names = (
+        "right_thumb_tip_Link",
+        "right_index_tip_Link",
+        "right_middle_tip_Link",
+        "right_ring_tip_Link",
+        "right_little_tip_Link",
+    )
+    left_tip_names = (
+        "left_thumb_tip_Link",
+        "left_index_tip_Link",
+        "left_middle_tip_Link",
+        "left_ring_tip_Link",
+        "left_little_tip_Link",
+    )
+
+    right_tip_positions = [_first_matching_body_pos_w(robot, (body_name,)) for body_name in right_tip_names]
+    left_tip_positions = [_first_matching_body_pos_w(robot, (body_name,)) for body_name in left_tip_names]
+    right_tips = torch.stack(right_tip_positions, dim=1)
+    left_tips = torch.stack(left_tip_positions, dim=1)
+    receiver_tips = torch.where(source_is_left.view(-1, 1, 1), right_tips, left_tips)
+
+    object_quat = obj.data.root_quat_w.unsqueeze(1).expand(-1, receiver_tips.shape[1], -1)
+    tip_pos_obj = math_utils.quat_apply_inverse(object_quat, receiver_tips - obj.data.root_pos_w.unsqueeze(1))
+    half_extents = torch.tensor(object_half_extents, device=env.device, dtype=receiver_tips.dtype).view(1, 1, 3)
+    q = torch.abs(tip_pos_obj) - half_extents
+    outside_distance = torch.norm(torch.clamp(q, min=0.0), dim=-1)
+    inside_distance = torch.clamp(torch.max(q, dim=-1).values, max=0.0)
+    surface_distance = torch.abs(outside_distance + inside_distance)
+    contact_count = (surface_distance < surface_threshold).sum(dim=-1)
+    catch_confirmed = contact_count >= min_fingers
+
+    right_joint_ids, _ = robot.find_joints(right_arm_joint_names, preserve_order=True)
+    left_joint_ids, _ = robot.find_joints(left_arm_joint_names, preserve_order=True)
+    right_error = robot.data.joint_pos[:, right_joint_ids] - robot.data.default_joint_pos[:, right_joint_ids]
+    left_error = robot.data.joint_pos[:, left_joint_ids] - robot.data.default_joint_pos[:, left_joint_ids]
+    receiver_arm_error = torch.where(source_is_left.unsqueeze(-1), right_error, left_error)
+    receiver_joint_error = torch.mean(torch.square(receiver_arm_error), dim=-1)
+    return torch.exp(-sharpness * receiver_joint_error) * catch_confirmed.float() * throw_gate
 
 
 def source_arm_return_to_default_reward(
@@ -563,6 +592,35 @@ def source_arm_return_to_default_reward(
     dist_to_source = torch.norm(obj.data.root_pos_w - source_palm, p=2, dim=-1)
     released = dist_to_source > release_distance
     return torch.exp(-sharpness * joint_error) * released.float() * throw_gate
+
+
+def source_finger_action_rate_excess_penalty(
+    env: ManagerBasedRLEnv,
+    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+    command_name: str = "handover",
+    robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    release_distance: float = 0.10,
+    action_rate_threshold: float = 0.12,
+    right_finger_action_slice: tuple[int, int] = (7, 28),
+    left_finger_action_slice: tuple[int, int] = (35, 56),
+) -> torch.Tensor:
+    """Penalize excessive post-release action-rate on the throwing-side dexterous hand."""
+    obj: RigidObject = env.scene[object_cfg.name]
+    command, source_palm, _, throw_gate, _ = _source_receiver_palm_state(env, command_name, robot_cfg)
+    source_is_left = command[:, 0] > 0.0
+
+    action_delta = env.action_manager.action - env.action_manager.prev_action
+    right_start, right_end = right_finger_action_slice
+    left_start, left_end = left_finger_action_slice
+    right_delta = action_delta[:, right_start:right_end]
+    left_delta = action_delta[:, left_start:left_end]
+    source_delta = torch.where(source_is_left.unsqueeze(-1), left_delta, right_delta)
+
+    source_rate = torch.mean(torch.square(source_delta), dim=-1)
+    excess_rate = torch.clamp(source_rate - action_rate_threshold, min=0.0)
+    dist_to_source = torch.norm(obj.data.root_pos_w - source_palm, p=2, dim=-1)
+    released = dist_to_source > release_distance
+    return excess_rate * released.float() * throw_gate
 
 
 def object_close_to_source_palm_reward(

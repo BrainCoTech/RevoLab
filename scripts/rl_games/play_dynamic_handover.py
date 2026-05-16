@@ -11,9 +11,6 @@ from pathlib import Path
 
 import torch
 
-HANDOVER_SOURCE_DISTANCE_THRESHOLD = 0.06
-HANDOVER_CATCH_DISTANCE_THRESHOLD = 0.10
-
 
 def _extend_pythonpath(isaaclab_root: Path, repo_root: Path) -> None:
     extra_paths = [
@@ -62,14 +59,6 @@ parser.add_argument("--seed", type=int, default=None, help="Seed used for the en
 parser.add_argument("--use_pretrained_checkpoint", action="store_true", help="Use the published pretrained checkpoint.")
 parser.add_argument("--use_last_checkpoint", action="store_true", help="Use the last saved checkpoint when omitted.")
 parser.add_argument("--real-time", action="store_true", default=False, help="Run in real-time if possible.")
-parser.add_argument("--auto-cycle", action="store_true", default=True, help="Automatically cycle hold/throw phases.")
-parser.add_argument("--hold-steps", type=int, default=18, help="Minimum hold steps before auto-throw.")
-parser.add_argument("--throw-min-steps", type=int, default=10, help="Minimum throw steps before catch detection.")
-parser.add_argument("--catch-stable-steps", type=int, default=6, help="Stable steps required to confirm a catch.")
-parser.add_argument("--hold-dist-thresh", type=float, default=HANDOVER_SOURCE_DISTANCE_THRESHOLD, help="Distance threshold for source-hand hold.")
-parser.add_argument("--catch-dist-thresh", type=float, default=HANDOVER_CATCH_DISTANCE_THRESHOLD, help="Distance threshold for receiver-hand catch.")
-parser.add_argument("--hold-speed-thresh", type=float, default=0.35, help="Object speed threshold for hold stability.")
-parser.add_argument("--catch-speed-thresh", type=float, default=0.45, help="Object speed threshold for catch stability.")
 parser.add_argument(
     "--command-file",
     type=Path,
@@ -107,11 +96,6 @@ from isaaclab_tasks.utils.hydra import hydra_task_config  # noqa: E402
 import BrainCo_DexHand  # noqa: F401, E402
 import BrainCo_DexHand.tasks.manager_based.dynamic_handover  # noqa: F401, E402
 
-from BrainCo_DexHand.assets.revotron_bimanual_revo3 import (  # noqa: E402
-    LEFT_PALM_BODY_NAMES,
-    RIGHT_PALM_BODY_NAMES,
-)
-
 
 def _parse_handover_command(command_text: str) -> torch.Tensor:
     value = command_text.strip().lower()
@@ -137,95 +121,6 @@ def _read_command_file(path: Path | None, fallback: torch.Tensor, last_mtime: fl
         return fallback, last_mtime
     command = _parse_handover_command(path.read_text(encoding="utf-8"))
     return command, stat.st_mtime
-
-
-def _command_to_phase(command: torch.Tensor) -> str:
-    source_is_left = command[0].item() > 0.0
-    throw_mode = command[1].item() > 0.0
-    if source_is_left:
-        return "left_throw" if throw_mode else "left_hold"
-    return "right_throw" if throw_mode else "right_hold"
-
-
-def _phase_to_command(phase: str, device: torch.device) -> torch.Tensor:
-    return _parse_handover_command(phase).to(device=device)
-
-
-def _first_body_index(robot, body_names: tuple[str, ...]) -> int | None:
-    for body_name in body_names:
-        try:
-            body_ids, _ = robot.find_bodies(body_name)
-        except ValueError:
-            continue
-        if body_ids:
-            return body_ids[0]
-    return None
-
-
-def _body_pos(robot, body_idx: int | None) -> torch.Tensor:
-    if body_idx is None:
-        return robot.data.root_pos_w
-    return robot.data.body_pos_w[:, body_idx]
-
-
-def _handover_metrics(base_env) -> dict[str, float]:
-    robot = base_env.scene["robot"]
-    obj = base_env.scene["object"]
-
-    right_idx = _first_body_index(robot, tuple(RIGHT_PALM_BODY_NAMES))
-    left_idx = _first_body_index(robot, tuple(LEFT_PALM_BODY_NAMES))
-    right_palm = _body_pos(robot, right_idx)
-    left_palm = _body_pos(robot, left_idx)
-    obj_pos = obj.data.root_pos_w
-    obj_speed = torch.norm(obj.data.root_lin_vel_w, dim=-1)
-
-    env_id = 0
-    return {
-        "dist_to_right": torch.norm(obj_pos[env_id] - right_palm[env_id], p=2).item(),
-        "dist_to_left": torch.norm(obj_pos[env_id] - left_palm[env_id], p=2).item(),
-        "obj_speed": obj_speed[env_id].item(),
-    }
-
-
-def _next_phase(current_phase: str) -> str:
-    if current_phase == "right_hold":
-        return "right_throw"
-    if current_phase == "right_throw":
-        return "left_hold"
-    if current_phase == "left_hold":
-        return "left_throw"
-    return "right_hold"
-
-
-def _auto_cycle_phase(
-    current_phase: str,
-    phase_step_count: int,
-    stable_counter: int,
-    metrics: dict[str, float],
-) -> tuple[str, int]:
-    if current_phase == "right_hold":
-        stable = metrics["dist_to_right"] < args_cli.hold_dist_thresh and metrics["obj_speed"] < args_cli.hold_speed_thresh
-        stable_counter = stable_counter + 1 if stable else 0
-        if phase_step_count >= args_cli.hold_steps and stable_counter >= args_cli.catch_stable_steps:
-            return "right_throw", 0
-        return current_phase, stable_counter
-    if current_phase == "left_hold":
-        stable = metrics["dist_to_left"] < args_cli.hold_dist_thresh and metrics["obj_speed"] < args_cli.hold_speed_thresh
-        stable_counter = stable_counter + 1 if stable else 0
-        if phase_step_count >= args_cli.hold_steps and stable_counter >= args_cli.catch_stable_steps:
-            return "left_throw", 0
-        return current_phase, stable_counter
-    if current_phase == "right_throw":
-        caught = metrics["dist_to_left"] < args_cli.catch_dist_thresh and metrics["obj_speed"] < args_cli.catch_speed_thresh
-        stable_counter = stable_counter + 1 if caught else 0
-        if phase_step_count >= args_cli.throw_min_steps and stable_counter >= args_cli.catch_stable_steps:
-            return "left_hold", 0
-        return current_phase, stable_counter
-    caught = metrics["dist_to_right"] < args_cli.catch_dist_thresh and metrics["obj_speed"] < args_cli.catch_speed_thresh
-    stable_counter = stable_counter + 1 if caught else 0
-    if phase_step_count >= args_cli.throw_min_steps and stable_counter >= args_cli.catch_stable_steps:
-        return "right_hold", 0
-    return current_phase, stable_counter
 
 
 @hydra_task_config(args_cli.task, args_cli.agent)
@@ -282,9 +177,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     handover_term = base_env.command_manager.get_term("handover")
     current_command = _parse_handover_command(args_cli.initial_command)
     handover_term.set_manual_command(current_command)
-    current_phase = _command_to_phase(current_command)
-    phase_step_count = 0
-    stable_counter = 0
     command_file_mtime = None
 
     env = RlGamesVecEnvWrapper(env, rl_device, clip_obs, clip_actions, obs_groups, concate_obs_groups)
@@ -320,23 +212,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
                 for state in agent.states:
                     state[:, dones, :] = 0.0
 
-        phase_step_count += 1
-        metrics = _handover_metrics(base_env)
-        next_phase, stable_counter = _auto_cycle_phase(current_phase, phase_step_count, stable_counter, metrics) if args_cli.auto_cycle else (current_phase, stable_counter)
         current_command, command_file_mtime = _read_command_file(args_cli.command_file, current_command, command_file_mtime)
-        manual_phase = _command_to_phase(current_command)
-        if args_cli.command_file is not None and command_file_mtime is not None:
-            if manual_phase != current_phase:
-                current_phase = manual_phase
-                phase_step_count = 0
-                stable_counter = 0
-        elif next_phase != current_phase:
-            current_phase = next_phase
-            current_command = _phase_to_command(current_phase, base_env.device)
-            phase_step_count = 0
-            stable_counter = 0
-
-        handover_term.set_manual_command(_phase_to_command(current_phase, base_env.device))
+        handover_term.set_manual_command(current_command.to(device=base_env.device))
         if args_cli.video:
             timestep += 1
             if timestep == args_cli.video_length:

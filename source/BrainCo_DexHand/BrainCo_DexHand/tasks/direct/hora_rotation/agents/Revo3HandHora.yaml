@@ -1,0 +1,41 @@
+# Training config for Hora Revo3 hand in Isaac Lab.
+# num_actors is overridden at runtime from env.num_envs.
+
+algo: PPO
+network:
+  mlp:
+    units: [512, 256, 128]
+  priv_mlp:
+    units: [256, 128, 8]
+
+load_path: ''   # path to checkpoint; overridden by --checkpoint CLI arg
+
+ppo:
+  output_name: 'debug'
+  normalize_input: True
+  normalize_value: True
+  value_bootstrap: True
+  num_actors: 16384          # overridden at runtime from env.num_envs
+  normalize_advantage: True
+  reward_scale: 0.01
+  gamma: 0.99
+  tau: 0.95
+  learning_rate: 5e-3
+  kl_threshold: 0.02
+  horizon_length: 8
+  minibatch_size: 32768
+  mini_epochs: 5
+  clip_value: True
+  critic_coef: 4
+  entropy_coef: 0.0
+  e_clip: 0.2
+  bounds_loss_coef: 0.0001
+  truncate_grads: True
+  grad_norm: 1.0
+  save_best_after: 0
+  save_frequency: 500
+  max_agent_steps: 300000000
+  priv_info: True
+  priv_info_dim: 8
+  priv_info_embed_dim: 8
+  proprio_adapt: False

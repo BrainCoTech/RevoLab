@@ -12,7 +12,7 @@ from isaaclab.assets.articulation import ArticulationCfg
 
 TIANJI_REVO3_RIGHT_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=str(Path(__file__).resolve().parents[4] / "usd" / "Tianji_Revo3_Right.usd"),
+        usd_path=str(Path(__file__).resolve().parents[4] / "assets" / "usd" / "dexsuite" / "Tianji_Revo3_Right.usd"),
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=True,

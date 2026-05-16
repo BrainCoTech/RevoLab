@@ -1,5 +1,5 @@
 asset_path: "/home/hxy-ubuntu2404/\u6587\u6863/BrainCo-code/dynamic_handover/assets/urdf/brainco_description/revotron_system/urdf/revotron_bimanual_revo3.urdf"
-usd_dir: "/home/hxy-ubuntu2404/\u6587\u6863/BrainCo-code/dynamic_handover/assets/USD"
+usd_dir: "assets/usd/dynamic_handover"
 usd_file_name: revotron_bimanual_revo3.usd
 force_usd_conversion: true
 make_instanceable: true

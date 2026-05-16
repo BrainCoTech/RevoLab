@@ -10,7 +10,7 @@ from isaaclab.assets.articulation import ArticulationCfg
 REPO_ROOT = Path(__file__).resolve().parents[4]
 ASSETS_DIR = REPO_ROOT / "assets"
 
-REVOTRON_BIMANUAL_REVO3_USD = ASSETS_DIR / "USD/revotron_bimanual_revo3.usd"
+REVOTRON_BIMANUAL_REVO3_USD = ASSETS_DIR / "usd/dynamic_handover/revotron_bimanual_revo3.usd"
 
 RIGHT_ARM_JOINT_NAMES = [
     "Joint1_R",

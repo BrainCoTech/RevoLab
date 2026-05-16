@@ -14,7 +14,7 @@ from isaaclab.sim import PhysxCfg, SimulationCfg
 from isaaclab.utils import configclass
 
 _REPO_ROOT = Path(__file__).resolve().parents[6]
-_REVO3_USD = str(_REPO_ROOT / "usd" / "hora" / "revo3_right.usd")
+_REVO3_USD = str(_REPO_ROOT / "assets" / "usd" / "hora" / "revo3_right.usd")
 
 
 @configclass

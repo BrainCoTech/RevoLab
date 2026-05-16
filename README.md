@@ -6,7 +6,7 @@ Isaac Lab environments, robot assets, and pretrained checkpoints for BrainCo dex
 - Revo3 in-hand reorientation
 - Revo3 HORA/RMA in-hand ball and cylinder rotation
 - Revo3 right-hand lift
-- Revo3 bimanual dynamic handover
+- RevoTron dynamic handover
 
 ## Included Tasks
 
@@ -17,20 +17,21 @@ Isaac Lab environments, robot assets, and pretrained checkpoints for BrainCo dex
 | Revo3 | Dexsuite | `BrainCo-Dexsuite-Revo3-Right-Lift-v0` | `checkpoints/BrainCo-Dexsuite-Revo3-Right-Lift-v0.pt` | <img src="image/BrainCo-Dexsuite-Revo3-Right-Lift-v0.gif" width="320"/> |
 | Revo3 | HORA | `BrainCo-Direct-Revo3-HoraRotate-Ball-v0` | `checkpoints/hora/revo3_right_ball_stage1_best.pth` | <img src="image/BrainCo-Direct-Revo3-HoraRotate-Ball-v0.gif" width="320"/> |
 | Revo3 | HORA | `BrainCo-Direct-Revo3-HoraRotate-Cylinder-v0` | `checkpoints/hora/revo3_right_cylinder_stage1_best.pth` | <img src="image/BrainCo-Direct-Revo3-HoraRotate-Cylinder-v0.gif" width="320"/> |
-| Revo3 bimanual | Dynamic Handover | `BrainCo-Dynamic-Handover-Revo3-Cube-v0` | `checkpoints/dynamic_handover/BrainCo_allegro.pth` | <img src="image/BrainCo-Dynamic-Handover-Revo3-Cube-v0.gif" width="320"/> |
+| RevoTron | Dynamic Handover | `BrainCo-Dynamic-Handover-Revo3-Cube-v0` | `checkpoints/dynamic_handover/BrainCo_allegro.pth` | <img src="image/BrainCo-Dynamic-Handover-Revo3-Cube-v0.gif" width="320"/> |
 
 ## Repository Layout
 
 ```text
 BrainCo-IsaacLab/
-├── assets/                 # Dynamic handover USD/URDF assets
+├── assets/                 # Robot assets, object meshes, and grasp caches
+│   ├── usd/                # USD assets grouped by task family
+│   └── urdf/               # URDF assets and meshes
 ├── checkpoints/            # Pretrained checkpoints
 ├── image/                  # Task demo GIFs
 ├── scripts/rsl_rl          # RSL-RL training and evaluation scripts
 ├── scripts/rl_games        # RL-Games training and evaluation scripts
 ├── scripts/hora            # HORA PPO / ProprioAdapt training and export scripts
-├── source/BrainCo_DexHand/ # Isaac Lab extension package
-└── usd/                    # Isaac Sim / Isaac Lab USD assets
+└── source/BrainCo_DexHand/ # Isaac Lab extension package
 ```
 
 ## Requirements
@@ -137,7 +138,7 @@ python scripts/hora/export_onnx.py \
 
 ## Dynamic Handover
 
-Dynamic handover uses the bimanual Revo3 asset and an RL-Games checkpoint. This task is adapted from [dynamic_handover](https://github.com/cypypccpy/dynamic_handover). Run from the repository root with the Isaac Lab Python environment activated:
+Dynamic handover uses the RevoTron asset and an RL-Games checkpoint. This task is adapted from [dynamic_handover](https://github.com/cypypccpy/dynamic_handover). Run from the repository root with the Isaac Lab Python environment activated:
 
 ```bash
 python scripts/rl_games/play_dynamic_handover.py \

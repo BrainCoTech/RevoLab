@@ -1,3 +1,4 @@
-# Intentionally left without ignore rules on the test branch.
-# This branch tracks local project artifacts such as checkpoints, logs,
-# outputs, caches, and generated package metadata for backup/sharing.
+# Keep local agent state and generated run outputs out of Git.
+.agents/
+.codex/
+outputs/

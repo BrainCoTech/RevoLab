@@ -138,7 +138,18 @@ python scripts/hora/export_onnx.py \
 
 ## Dynamic Handover
 
-Dynamic handover uses the RevoTron asset and an RL-Games checkpoint. This task is adapted from [dynamic_handover](https://github.com/cypypccpy/dynamic_handover). Run from the repository root with the Isaac Lab Python environment activated:
+Dynamic handover uses the RevoTron asset and RL-Games. This task is adapted from [dynamic_handover](https://github.com/cypypccpy/dynamic_handover). Run from the repository root with the Isaac Lab Python environment activated.
+
+Train:
+
+```bash
+python scripts/rl_games/train_dynamic_handover.py \
+  --task BrainCo-Dynamic-Handover-Revo3-Cube-v0 \
+  --num_envs 32 \
+  --headless
+```
+
+Evaluate:
 
 ```bash
 python scripts/rl_games/play_dynamic_handover.py \
@@ -162,16 +173,6 @@ Then update the command from another terminal:
 ```bash
 echo 'right_throw' > /tmp/handover_command.txt
 echo 'left_throw' > /tmp/handover_command.txt
-```
-
-For a short training smoke test:
-
-```bash
-python scripts/rl_games/train_dynamic_handover.py \
-  --task BrainCo-Dynamic-Handover-Revo3-Cube-v0 \
-  --num_envs 32 \
-  --max_iterations 1 \
-  --headless
 ```
 
 ## Sim-to-real

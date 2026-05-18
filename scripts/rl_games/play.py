@@ -41,7 +41,7 @@ def _ensure_default_task(argv: list[str]) -> list[str]:
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CHECKPOINT = REPO_ROOT / "checkpoints" / "dynamic_handover" / "BrainCo_allegro.pth"
+DEFAULT_CHECKPOINT = REPO_ROOT / "checkpoints" / "dynamic_handover" / "revotron_handover.pth"
 ISAACLAB_ROOT = _resolve_isaaclab_root()
 _extend_pythonpath(ISAACLAB_ROOT, REPO_ROOT)
 

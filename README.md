@@ -17,7 +17,7 @@ Isaac Lab environments, robot assets, and pretrained checkpoints for BrainCo dex
 | Revo3 | Dexsuite | `BrainCo-Dexsuite-Revo3-Right-Lift-v0` | `checkpoints/BrainCo-Dexsuite-Revo3-Right-Lift-v0.pt` | <img src="image/BrainCo-Dexsuite-Revo3-Right-Lift-v0.gif" width="320"/> |
 | Revo3 | HORA | `BrainCo-Direct-Revo3-HoraRotate-Ball-v0` | `checkpoints/hora/revo3_right_ball_stage1_best.pth` | <img src="image/BrainCo-Direct-Revo3-HoraRotate-Ball-v0.gif" width="320"/> |
 | Revo3 | HORA | `BrainCo-Direct-Revo3-HoraRotate-Cylinder-v0` | `checkpoints/hora/revo3_right_cylinder_stage1_best.pth` | <img src="image/BrainCo-Direct-Revo3-HoraRotate-Cylinder-v0.gif" width="320"/> |
-| RevoTron | Dynamic Handover | `BrainCo-Dynamic-Handover-Revo3-Cube-v0` | `checkpoints/dynamic_handover/BrainCo_allegro.pth` | <img src="image/BrainCo-Dynamic-Handover-Revo3-Cube-v0.gif" width="320"/> |
+| RevoTron | Dynamic Handover | `BrainCo-Dynamic-Handover-Revo3-Cube-v0` | `checkpoints/dynamic_handover/revotron_handover.pth` | <img src="image/BrainCo-Dynamic-Handover-Revo3-Cube-v0.gif" width="320"/> |
 
 ## Repository Layout
 
@@ -143,28 +143,28 @@ Dynamic handover uses the RevoTron asset and RL-Games. This task is adapted from
 Train:
 
 ```bash
-python scripts/rl_games/train_dynamic_handover.py \
+python scripts/rl_games/train.py \
   --task BrainCo-Dynamic-Handover-Revo3-Cube-v0 \
-  --num_envs 32 \
+  --num_envs 4096 \
   --headless
 ```
 
 Evaluate:
 
 ```bash
-python scripts/rl_games/play_dynamic_handover.py \
+python scripts/rl_games/play.py \
   --task BrainCo-Dynamic-Handover-Revo3-Cube-Play-v0 \
   --num_envs 1 \
-  --checkpoint checkpoints/dynamic_handover/BrainCo_allegro.pth
+  --checkpoint checkpoints/dynamic_handover/revotron_handover.pth
 ```
 
 To manually switch toss direction during play, pass a command file:
 
 ```bash
-python scripts/rl_games/play_dynamic_handover.py \
+python scripts/rl_games/play.py \
   --task BrainCo-Dynamic-Handover-Revo3-Cube-Play-v0 \
   --num_envs 1 \
-  --checkpoint checkpoints/dynamic_handover/BrainCo_allegro.pth \
+  --checkpoint checkpoints/dynamic_handover/revotron_handover.pth \
   --command-file /tmp/handover_command.txt
 ```
 

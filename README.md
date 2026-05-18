@@ -109,22 +109,22 @@ The HORA rotation tasks are integrated as a separate training path because their
 Stage 1 PPO teacher training:
 
 ```bash
-scripts/hora/train_s1.sh --task ball --num_envs 16384 --headless
-scripts/hora/train_s1.sh --task cylinder --num_envs 16384 --headless
+python scripts/hora/train.py --algo PPO --task ball --num_envs 16384 --headless
+python scripts/hora/train.py --algo PPO --task cylinder --num_envs 16384 --headless
 ```
 
 Stage 2 ProprioAdapt training from a Stage 1 checkpoint:
 
 ```bash
-scripts/hora/train_s2.sh outputs/hora/revo3_right/run_ball/stage1_nn/best.pth --task ball --num_envs 16384 --headless
-scripts/hora/train_s2.sh outputs/hora/revo3_right/run_cylinder/stage1_nn/best.pth --task cylinder --num_envs 16384 --headless
+python scripts/hora/train.py --algo ProprioAdapt --checkpoint outputs/hora/revo3_right/run_ball/stage1_nn/best.pth --task ball --num_envs 16384 --headless
+python scripts/hora/train.py --algo ProprioAdapt --checkpoint outputs/hora/revo3_right/run_cylinder/stage1_nn/best.pth --task cylinder --num_envs 16384 --headless
 ```
 
 Evaluate a checkpoint:
 
 ```bash
-scripts/hora/train_s1.sh --task ball --num_envs 32 --test --checkpoint checkpoints/hora/revo3_right_ball_stage1_best.pth
-scripts/hora/train_s1.sh --task cylinder --num_envs 32 --test --checkpoint checkpoints/hora/revo3_right_cylinder_stage1_best.pth
+python scripts/hora/train.py --algo PPO --task ball --num_envs 32 --test --checkpoint checkpoints/hora/revo3_right_ball_stage1_best.pth
+python scripts/hora/train.py --algo PPO --task cylinder --num_envs 32 --test --checkpoint checkpoints/hora/revo3_right_cylinder_stage1_best.pth
 ```
 
 Export a Stage 2 checkpoint to ONNX:

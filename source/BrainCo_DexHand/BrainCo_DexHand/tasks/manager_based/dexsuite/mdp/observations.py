@@ -238,3 +238,48 @@ def fingers_contact_force_b(
     robot: Articulation = env.scene[asset_cfg.name]
     forces_b = quat_apply_inverse(robot.data.root_link_quat_w.unsqueeze(1).repeat(1, force_w.shape[1], 1), force_w)
     return forces_b.view(env.num_envs, -1)
+
+
+def fingers_contact_force_b_3d(
+    env: ManagerBasedRLEnv,
+    contact_sensor_names: list[str],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Base-frame contact forces with explicit fingertip dimension.
+
+    Returns:
+        Tensor of shape ``(num_envs, num_sensors, 3)`` in the order supplied by
+        ``contact_sensor_names``.
+    """
+
+    force_w = [env.scene.sensors[name].data.force_matrix_w.view(env.num_envs, 3) for name in contact_sensor_names]
+    force_w = torch.stack(force_w, dim=1)
+    robot: Articulation = env.scene[asset_cfg.name]
+    return quat_apply_inverse(robot.data.root_link_quat_w.unsqueeze(1).repeat(1, force_w.shape[1], 1), force_w)
+
+
+def _stack_tactile_sensor_attr(env: ManagerBasedRLEnv, tactile_sensor_names: list[str], attr_name: str) -> torch.Tensor:
+    """Stack a TacSL tactile data attribute across fingertip sensors."""
+
+    values = []
+    for sensor_name in tactile_sensor_names:
+        data = env.scene.sensors[sensor_name].data
+        if not hasattr(data, attr_name):
+            raise AttributeError(f"Tactile sensor '{sensor_name}' does not expose data.{attr_name}.")
+        values.append(getattr(data, attr_name))
+    return torch.stack(values, dim=1)
+
+
+def tactile_depth_image(env: ManagerBasedRLEnv, tactile_sensor_names: list[str]) -> torch.Tensor:
+    """TacSL tactile depth images stacked as ``(num_envs, num_sensors, H, W)``."""
+
+    depth = _stack_tactile_sensor_attr(env, tactile_sensor_names, "tactile_depth_image")
+    if depth.ndim == 5 and depth.shape[-1] == 1:
+        depth = depth.squeeze(-1)
+    return depth
+
+
+def tactile_rgb_image(env: ManagerBasedRLEnv, tactile_sensor_names: list[str]) -> torch.Tensor:
+    """TacSL tactile RGB images stacked as ``(num_envs, num_sensors, H, W, 3)``."""
+
+    return _stack_tactile_sensor_attr(env, tactile_sensor_names, "tactile_rgb_image")

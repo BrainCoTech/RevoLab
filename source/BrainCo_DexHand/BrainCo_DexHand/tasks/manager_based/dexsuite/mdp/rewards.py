@@ -166,6 +166,12 @@ def any_finger_contact(
         "right_middle_DIP_Link_object_s",
         "right_ring_DIP_Link_object_s",
         "right_little_DIP_Link_object_s",
+        # Revo3 tactile force names
+        "thumb_tactile_force",
+        "index_tactile_force",
+        "middle_tactile_force",
+        "ring_tactile_force",
+        "little_tactile_force",
     ]
 
     contact_magnitudes = []

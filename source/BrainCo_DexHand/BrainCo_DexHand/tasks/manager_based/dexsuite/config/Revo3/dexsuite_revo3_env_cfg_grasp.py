@@ -8,36 +8,40 @@
 import torch
 import isaaclab.sim as sim_utils
 from pxr import Sdf, Usd, UsdPhysics
+from isaaclab.assets import RigidObjectCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.managers import EventTermCfg as EventTerm
+from isaaclab.managers import ObservationGroupCfg as ObsGroup
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.sensors import ContactSensor, ContactSensorCfg
+from isaaclab.sensors import ContactSensor
 from isaaclab.utils import configclass
 
 from BrainCo_DexHand.assets.tianji_revo3_right import TIANJI_REVO3_RIGHT_CFG
 
 from ... import dexsuite_env_cfg_grasp_tianji as dexsuite
 from ... import mdp
+from .tactile import (
+    TACTILE_CUBE_USD_PATH,
+    TACTILE_DIP_BODIES,
+    TACTILE_FORCE_SENSOR_NAMES,
+    TACTILE_TIP_BODIES,
+    TACTILE_USD_PATH,
+    TACTILE_VIS_SENSOR_NAMES,
+    TactileCameraSettings,
+    make_tacsl_sensor_cfgs,
+    make_tactile_force_sensor_cfgs,
+)
 
 
 TIANJI_PALM_BODY_NAME = dexsuite.TIANJI_PALM_BODY_NAME
-TIANJI_HAND_DIP_BODIES = [
-    "right_little_DIP_Link",
-    "right_ring_DIP_Link",
-    "right_middle_DIP_Link",
-    "right_index_DIP_Link",
-    "right_thumb_DIP_Link",
-]
+TIANJI_HAND_DIP_BODIES = list(TACTILE_DIP_BODIES)
+TIANJI_TACTILE_FORCE_SENSOR_NAMES = list(TACTILE_FORCE_SENSOR_NAMES)
 TIANJI_HAND_TIP_BODIES = [
     TIANJI_PALM_BODY_NAME,
-    "right_little_tip_Link",
-    "right_ring_tip_Link",
-    "right_middle_tip_Link",
-    "right_index_tip_Link",
-    "right_thumb_tip_Link",
+    *TACTILE_TIP_BODIES,
 ]
 
 
@@ -155,11 +159,11 @@ class Revo3RelJointPosActionCfg:
 
 def tianji_hand_contacts(env: ManagerBasedRLEnv, threshold: float) -> torch.Tensor:
     """Thumb plus at least one other fingertip contact for the Tianji hand."""
-    thumb_contact_sensor: ContactSensor = env.scene.sensors["right_thumb_DIP_Link_object_s"]
-    index_contact_sensor: ContactSensor = env.scene.sensors["right_index_DIP_Link_object_s"]
-    middle_contact_sensor: ContactSensor = env.scene.sensors["right_middle_DIP_Link_object_s"]
-    ring_contact_sensor: ContactSensor = env.scene.sensors["right_ring_DIP_Link_object_s"]
-    little_contact_sensor: ContactSensor = env.scene.sensors["right_little_DIP_Link_object_s"]
+    little_contact_sensor: ContactSensor = env.scene.sensors["little_tactile_force"]
+    ring_contact_sensor: ContactSensor = env.scene.sensors["ring_tactile_force"]
+    middle_contact_sensor: ContactSensor = env.scene.sensors["middle_tactile_force"]
+    index_contact_sensor: ContactSensor = env.scene.sensors["index_tactile_force"]
+    thumb_contact_sensor: ContactSensor = env.scene.sensors["thumb_tactile_force"]
 
     thumb_contact = thumb_contact_sensor.data.force_matrix_w.view(env.num_envs, 3)
     index_contact = index_contact_sensor.data.force_matrix_w.view(env.num_envs, 3)
@@ -255,6 +259,23 @@ class Revo3ReorientRewardCfg(dexsuite.RewardsCfg):
 
 
 @configclass
+class Revo3TactileObsCfg(ObsGroup):
+    """Shaped tactile observations for debugging, export, and tactile policies."""
+
+    tactile_force_3d = ObsTerm(
+        func=mdp.fingers_contact_force_b_3d,
+        params={"contact_sensor_names": TIANJI_TACTILE_FORCE_SENSOR_NAMES},
+        clip=(-20.0, 20.0),
+    )
+    tactile_depth: ObsTerm | None = None
+    tactile_rgb: ObsTerm | None = None
+
+    def __post_init__(self):
+        self.enable_corruption = False
+        self.concatenate_terms = False
+
+
+@configclass
 class Revo3MixinCfg:
     """Mixin that attaches the public Revo3 robot asset."""
 
@@ -299,19 +320,12 @@ class Revo3MixinCfg:
             },
         )
 
-        for link_name in TIANJI_HAND_DIP_BODIES:
-            setattr(
-                self.scene,
-                f"{link_name}_object_s",
-                ContactSensorCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/" + link_name,
-                    filter_prim_paths_expr=["{ENV_REGEX_NS}/Object"],
-                ),
-            )
+        for sensor_name, sensor_cfg in make_tactile_force_sensor_cfgs().items():
+            setattr(self.scene, sensor_name, sensor_cfg)
 
         self.observations.proprio.contact = ObsTerm(
             func=mdp.fingers_contact_force_b,
-            params={"contact_sensor_names": [f"{link}_object_s" for link in TIANJI_HAND_DIP_BODIES]},
+            params={"contact_sensor_names": TIANJI_TACTILE_FORCE_SENSOR_NAMES},
             clip=(-20.0, 20.0),
         )
 
@@ -361,3 +375,81 @@ class DexsuiteRevo3LiftEnvCfg_PLAY(Revo3MixinCfg, dexsuite.DexsuiteLiftEnvCfg_PL
     """Configuration for Revo3 lift environment (evaluation/play)."""
 
     pass
+
+
+@configclass
+class Revo3TactileMixinCfg:
+    """Mixin that adds shaped force and TacSL fingertip tactile observations."""
+
+    enable_tacsl_tactile: bool = True
+    enable_tactile_rgb: bool = False
+    enable_tactile_force_field: bool = False
+    tactile_image_height: int = 320
+    tactile_image_width: int = 240
+    tactile_array_size: tuple[int, int] = (16, 16)
+
+    def __post_init__(self: dexsuite.DexsuiteReorientEnvCfg):
+        super().__post_init__()
+
+        self.scene.robot.spawn = sim_utils.UsdFileCfg(
+            usd_path=str(TACTILE_USD_PATH),
+            activate_contact_sensors=True,
+            rigid_props=TIANJI_REVO3_RIGHT_CFG.spawn.rigid_props,
+            articulation_props=TIANJI_REVO3_RIGHT_CFG.spawn.articulation_props,
+            joint_drive_props=TIANJI_REVO3_RIGHT_CFG.spawn.joint_drive_props,
+        )
+        self.scene.object = RigidObjectCfg(
+            prim_path="{ENV_REGEX_NS}/Object",
+            spawn=sim_utils.UsdFileCfg(
+                usd_path=str(TACTILE_CUBE_USD_PATH),
+                rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                    solver_position_iteration_count=16,
+                    solver_velocity_iteration_count=0,
+                    disable_gravity=False,
+                ),
+                collision_props=sim_utils.CollisionPropertiesCfg(contact_offset=0.005, rest_offset=0.0),
+                mass_props=sim_utils.MassPropertiesCfg(mass=0.2),
+            ),
+            init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.1, 0.95)),
+        )
+
+        self.observations.tactile = Revo3TactileObsCfg()
+
+        if not self.enable_tacsl_tactile:
+            return
+
+        tactile_sensor_cfgs = make_tacsl_sensor_cfgs(
+            camera_settings=TactileCameraSettings(
+                height=self.tactile_image_height,
+                width=self.tactile_image_width,
+            ),
+            enable_rgb=self.enable_tactile_rgb,
+            enable_force_field=self.enable_tactile_force_field,
+            tactile_array_size=self.tactile_array_size,
+        )
+        for sensor_name, sensor_cfg in tactile_sensor_cfgs.items():
+            setattr(self.scene, sensor_name, sensor_cfg)
+
+        self.observations.tactile.tactile_depth = ObsTerm(
+            func=mdp.tactile_depth_image,
+            params={"tactile_sensor_names": list(TACTILE_VIS_SENSOR_NAMES)},
+        )
+        if self.enable_tactile_rgb:
+            self.observations.tactile.tactile_rgb = ObsTerm(
+                func=mdp.tactile_rgb_image,
+                params={"tactile_sensor_names": list(TACTILE_VIS_SENSOR_NAMES)},
+            )
+
+
+@configclass
+class DexsuiteRevo3LiftTactileEnvCfg(Revo3TactileMixinCfg, DexsuiteRevo3LiftEnvCfg):
+    """Configuration for Revo3 lift with five fingertip tactile sensors."""
+
+    pass
+
+
+@configclass
+class DexsuiteRevo3LiftTactileEnvCfg_PLAY(Revo3TactileMixinCfg, DexsuiteRevo3LiftEnvCfg_PLAY):
+    """Evaluation config for Revo3 lift with five fingertip tactile sensors."""
+
+    enable_tactile_rgb: bool = True

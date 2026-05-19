@@ -1,0 +1,62 @@
+#usda 1.0
+(
+    defaultPrim = "Cube"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Cube" (
+    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+)
+{
+    float physics:mass = 0.2
+    double3 xformOp:translate = (0, 0, 0)
+    quatf xformOp:orient = (1, 0, 0, 0)
+    double3 xformOp:scale = (1, 1, 1)
+    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+    def Material "cube_material"
+    {
+        token outputs:surface.connect = </Cube/cube_material/PreviewSurface.outputs:surface>
+
+        def Shader "PreviewSurface"
+        {
+            uniform token info:id = "UsdPreviewSurface"
+            color3f inputs:diffuseColor = (0.78, 0.18, 0.14)
+            float inputs:roughness = 0.52
+            token outputs:surface
+        }
+    }
+
+    def Mesh "collision_mesh" (
+        prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsMeshCollisionAPI", "PhysxSDFMeshCollisionAPI"]
+    )
+    {
+        int[] faceVertexCounts = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+        int[] faceVertexIndices = [
+            0, 2, 1, 0, 3, 2,
+            4, 5, 6, 4, 6, 7,
+            0, 1, 5, 0, 5, 4,
+            1, 2, 6, 1, 6, 5,
+            2, 3, 7, 2, 7, 6,
+            3, 0, 4, 3, 4, 7
+        ]
+        point3f[] points = [
+            (-0.03, -0.03, -0.03),
+            (0.03, -0.03, -0.03),
+            (0.03, 0.03, -0.03),
+            (-0.03, 0.03, -0.03),
+            (-0.03, -0.03, 0.03),
+            (0.03, -0.03, 0.03),
+            (0.03, 0.03, 0.03),
+            (-0.03, 0.03, 0.03)
+        ]
+        rel material:binding = </Cube/cube_material>
+        uniform token physics:approximation = "sdf"
+        uniform int physxSDFMeshCollision:sdfResolution = 64
+        uniform int physxSDFMeshCollision:sdfSubgridResolution = 6
+        uniform float physxSDFMeshCollision:sdfMargin = 0.01
+        uniform float physxSDFMeshCollision:sdfNarrowBandThickness = 0.01
+        uniform token subdivisionScheme = "none"
+    }
+}

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -30,6 +31,10 @@ from isaaclab.utils.math import (
 
 if TYPE_CHECKING:
     from BrainCo_DexHand.tasks.direct.brainco.brainco_hand_reorient_env_cfg import BrainCoHandEnvCfg
+
+_LOCAL_GROUND_USD = str(
+    Path(__file__).resolve().parents[5] / "assets" / "usd" / "ground" / "default_environment.usd"
+)
 
 
 def _resolve_env_ids(env: DirectRLEnv, env_ids: torch.Tensor | list[int] | slice | None) -> list[int]:
@@ -205,7 +210,7 @@ class InHandManipulationEnv(DirectRLEnv):
         self.hand = Articulation(self.cfg.robot_cfg)
         self.object = RigidObject(self.cfg.object_cfg)
         # add ground plane
-        spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
+        spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg(usd_path=_LOCAL_GROUND_USD))
         # clone and replicate (no need to filter for this environment)
         self.scene.clone_environments(copy_from_source=False)
         # add articulation to scene - we must register to scene to randomize with EventManager

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 import os
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -23,6 +24,10 @@ from isaaclab.utils.math import quat_conjugate, quat_mul, axis_angle_from_quat, 
 
 if TYPE_CHECKING:
     from .revo3_hand_hora_env_cfg import Revo3HandHoraEnvCfg
+
+_LOCAL_GROUND_USD = str(
+    Path(__file__).resolve().parents[6] / "assets" / "usd" / "ground" / "default_environment.usd"
+)
 
 
 class Revo3HandHoraEnv(DirectRLEnv):
@@ -178,7 +183,7 @@ class Revo3HandHoraEnv(DirectRLEnv):
         self.hand = Articulation(self.cfg.robot_cfg)
         self.object = RigidObject(self.cfg.object_cfg)
         # add ground plane
-        spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg())
+        spawn_ground_plane(prim_path="/World/ground", cfg=GroundPlaneCfg(usd_path=_LOCAL_GROUND_USD))
         # clone and replicate (no need to filter for this environment)
         self.scene.clone_environments(copy_from_source=False)
         self.scene.filter_collisions()

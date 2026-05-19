@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from dataclasses import MISSING
+from pathlib import Path
 
 import torch
 
@@ -28,6 +29,9 @@ from .adr_curriculum import CurriculumCfg as BaseCurriculumCfg
 
 
 TIANJI_PALM_BODY_NAME = "palm"
+_LOCAL_GROUND_USD = str(
+    Path(__file__).resolve().parents[6] / "assets" / "usd" / "ground" / "default_environment.usd"
+)
 
 
 def reset_object_above_palm(
@@ -157,7 +161,7 @@ class SceneCfg(InteractiveSceneCfg):
     plane = AssetBaseCfg(
         prim_path="/World/GroundPlane",
         init_state=AssetBaseCfg.InitialStateCfg(),
-        spawn=sim_utils.GroundPlaneCfg(),
+        spawn=sim_utils.GroundPlaneCfg(usd_path=_LOCAL_GROUND_USD),
         collision_group=-1,
     )
 

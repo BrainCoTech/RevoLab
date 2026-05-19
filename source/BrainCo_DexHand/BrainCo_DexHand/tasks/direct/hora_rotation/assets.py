@@ -8,7 +8,7 @@ from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg, RigidObjectCfg
 
 _REPO_ROOT = Path(__file__).resolve().parents[6]
-_REVO3_USD = str(_REPO_ROOT / "assets" / "usd" / "hora" / "revo3_right.usd")
+_REVO3_USD = str(_REPO_ROOT / "assets" / "usd" / "revo3_right.usd")
 
 # Object initial positions in env-local coordinates.
 OBJECT_INIT_ROT = (1.0, 0.0, 0.0, 0.0)

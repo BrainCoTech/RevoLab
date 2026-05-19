@@ -17,7 +17,7 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 BRAINCO_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=str(Path(__file__).resolve().parents[4] / "assets" / "usd" / "inhand" / "right_hand.usd"),
+        usd_path=str(Path(__file__).resolve().parents[4] / "assets" / "usd" / "revo3_right.usd"),
         activate_contact_sensors=True,  # Enable contact sensors for fingertips
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=True,

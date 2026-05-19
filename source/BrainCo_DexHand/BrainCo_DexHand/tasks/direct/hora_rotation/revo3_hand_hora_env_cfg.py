@@ -183,7 +183,7 @@ class Revo3HandHoraEnvCfg(DirectRLEnvCfg):
             self.contact_sensor.append(ContactSensorCfg(
                 prim_path=f"/World/envs/env_.*/hand/{name}",
                 history_length=3,
-                track_contact_points=True,
+                track_contact_points=False,
                 filter_prim_paths_expr=["/World/envs/env_.*/object"],
             ))
 

@@ -31,6 +31,7 @@ BrainCo-IsaacLab/
 ├── scripts/rsl_rl          # RSL-RL training and evaluation scripts
 ├── scripts/rl_games        # RL-Games training and evaluation scripts
 ├── scripts/hora            # HORA PPO / ProprioAdapt training and export scripts
+├── deploy/revo3            # Revo3 sim-to-real deployment package
 └── source/BrainCo_DexHand/ # Isaac Lab extension package
 ```
 
@@ -175,10 +176,48 @@ echo 'right_throw' > /tmp/handover_command.txt
 echo 'left_throw' > /tmp/handover_command.txt
 ```
 
-## Sim-to-real
-Work in progress: current tasks are trained with `ImplicitActuatorCfg`, where the actuator dynamics are handled internally by the simulator. In the next release, we will update the identified dynamic parameters to improve sim-to-real performance.
+## Sim-to-real Deployment
 
-Additional tasks and sim-to-real scripts will be released in future updates.
+Below is a sim-to-real deployment of `BrainCo-Direct-Revo3-HoraRotate-Cylinder-v0`. More tasks' sim-to-real deployments will be released in the future.
+
+<p align="center">
+  <img src="image/sim2real.gif" alt="Revo3 sim-to-real deployment demo" width="360"/>
+</p>
+
+The Revo3 deployment runtime lives in `deploy/revo3`. It is a lightweight, ROS-free package for running exported ONNX policies on the real Revo3 hand through the Revo3 Python SDK.
+
+The deploy loop is closed-loop: it reads measured joint positions from hardware, builds the policy observation history, runs ONNX inference, maps policy-order targets to SDK motor order, and sends MIT commands back to the hand. It is not a fixed trajectory replay tool.
+
+Install the deploy package:
+
+```bash
+cd deploy/revo3
+pip install -e .
+```
+
+Install the hardware extra when running on the real hand:
+
+```bash
+pip install -e ".[hardware]"
+```
+
+The runtime uses:
+
+- `policy.onnx`: exported policy network
+- `policy.yaml`: policy I/O contract and metadata
+- `config/revo3_right.yaml`: joint order, joint limits, SDK settings, MIT gains, and sim-to-real offsets
+
+Run a dry-run policy loop without sending commands:
+
+```bash
+python scripts/run_policy.py \
+  --onnx artifacts/repose_cube/policy.onnx \
+  --policy artifacts/repose_cube/policy.yaml \
+  --profile config/revo3_right.yaml \
+  --dry-run
+```
+
+See `deploy/revo3/README.md` for export and hardware run commands.
 
 ## Notes
 

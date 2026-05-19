@@ -1,10 +1,16 @@
 __pycache__/
+**/__pycache__/
 *.py[cod]
+*$py.class
 *.so
 .DS_Store
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.pyre/
+.nox/
+.tox/
+.ipynb_checkpoints/
 .coverage
 htmlcov/
 .venv/
@@ -23,7 +29,7 @@ outputs/
 upload-oss.sh
 checkpoints/*
 !checkpoints/dynamic_handover/
-!checkpoints/dynamic_handover/BrainCo_allegro.pth
+!checkpoints/dynamic_handover/revotron_handover.pth
 !checkpoints/hora/
 !checkpoints/hora/revo3_right_ball_stage1_best.pth
 !checkpoints/hora/revo3_right_cylinder_stage1_best.pth

@@ -11,8 +11,7 @@ Outputs <name>.onnx and <name>.deploy_meta.yaml (IO contract, joint order, actio
 Default obs_dim=141 (no contact_pos), default output path under outputs/hora/revo3_right/onnx/.
 
 Gotcha — obs_dim must match the checkpoint's training config. The default 141 matches
-  the current env (3 frames × 47 dims, no contact_pos). Old checkpoints with contact_pos
-  (186 dims) need --obs_dim 186 --prop_hist_len 30.
+  the current env (3 frames × 47 dims, no contact_pos). Only v1 artifacts are supported.
 """
 
 from __future__ import annotations
@@ -32,6 +31,8 @@ EXTENSION_PATH = REPO_ROOT / "source" / "BrainCo_DexHand"
 if str(EXTENSION_PATH) not in sys.path:
     sys.path.insert(0, str(EXTENSION_PATH))
 
+from BrainCo_DexHand.artifacts import read_asset_contract
+from BrainCo_DexHand.assets.description import DESCRIPTION_REVISION
 from BrainCo_DexHand.algo.hora.models.models import ActorCritic
 from BrainCo_DexHand.algo.hora.models.running_mean_std import RunningMeanStd
 
@@ -44,29 +45,6 @@ DEFAULT_ACTION_DIM = 21
 DEFAULT_PROP_HIST_LEN = 30
 DEFAULT_OBS_PER_STEP = 47
 
-RIGHT_HAND_JOINT_ORDER = [
-    "right_index_MPR_joint",
-    "right_little_MPR_joint",
-    "right_middle_MPR_joint",
-    "right_ring_MPR_joint",
-    "right_thumb_CMP_joint",
-    "right_index_MCP_joint",
-    "right_little_MCP_joint",
-    "right_middle_MCP_joint",
-    "right_ring_MCP_joint",
-    "right_thumb_CMR_joint",
-    "right_index_PIP_joint",
-    "right_little_PIP_joint",
-    "right_middle_PIP_joint",
-    "right_ring_PIP_joint",
-    "right_thumb_MCP_joint",
-    "right_index_DIP_joint",
-    "right_little_DIP_joint",
-    "right_middle_DIP_joint",
-    "right_ring_DIP_joint",
-    "right_thumb_PIP_joint",
-    "right_thumb_DIP_joint",
-]
 
 
 def _find_config_for_checkpoint(ckpt_path: Path) -> Path | None:
@@ -173,7 +151,9 @@ def _save_deploy_meta(
     n_action_steps: int,
     runtime_reference: dict[str, Any],
 ) -> None:
+    contract = read_asset_contract(str(checkpoint))
     meta = {
+        "asset_contract": contract,
         "export": {
             "stage": stage,
             "config_yaml": str(cfg_path) if cfg_path is not None else "",
@@ -197,7 +177,7 @@ def _save_deploy_meta(
             "policy_rate_hz": float(policy_rate),
             "chunk_size": int(chunk_size),
             "n_action_steps": int(n_action_steps),
-            "joint_order_right_hand": RIGHT_HAND_JOINT_ORDER,
+            "joint_order_right_hand": contract["action_joints"]["joints"],
             "dynamic_batch": dynamic_batch,
         },
         "normalization": {
@@ -307,6 +287,9 @@ def main() -> None:
     model = ActorCritic(net_config).cpu().eval()
     rms_obs = RunningMeanStd((obs_dim,)).cpu().eval()
 
+    contract = read_asset_contract(str(ckpt_path))
+    if contract.get("asset_revision") != DESCRIPTION_REVISION or "HoraRotate" not in contract.get("task_id", ""):
+        raise ValueError("Export requires a v1 HORA run using the pinned robot asset")
     checkpoint = torch.load(str(ckpt_path), map_location="cpu")
     if "model" in checkpoint:
         model.load_state_dict(checkpoint["model"], strict=True)
@@ -345,7 +328,7 @@ def main() -> None:
             print(f"[WARN] sa_mean_std shape mismatch: ckpt={rms_hist_shape}, expected={expected_hist}")
         print(
             f"[INFO] Stage2 reference -> RMS(obs)={expected_obs}, RMS(hist)={expected_hist}, "
-            f"joints={len(RIGHT_HAND_JOINT_ORDER)}, scale_keys={scale_keys if scale_keys else 'unknown'}",
+            f"joints={len(contract['action_joints']['joints'])}, scale_keys={scale_keys if scale_keys else 'unknown'}",
             flush=True,
         )
 
@@ -421,7 +404,7 @@ def main() -> None:
                 rms_hist_shape if args.stage == "stage2" and rms_hist_shape is not None else [prop_hist_len, obs_per_step]
             ),
             "joint_order_source": "Isaac Lab runtime hand.data.joint_names",
-            "joint_order_right_hand": RIGHT_HAND_JOINT_ORDER,
+            "joint_order_right_hand": contract["action_joints"]["joints"],
         },
     )
 

@@ -27,9 +27,7 @@ outputs/
 .codex
 
 upload-oss.sh
+tmp/
 checkpoints/*
-!checkpoints/dynamic_handover/
-!checkpoints/dynamic_handover/revotron_handover.pth
-!checkpoints/hora/
-!checkpoints/hora/revo3_right_ball_stage1_best.pth
-!checkpoints/hora/revo3_right_cylinder_stage1_best.pth
+!checkpoints/README.md
+assets/grasp_cache/

@@ -9,7 +9,9 @@ import os
 from pathlib import Path
 
 import numpy as np
+import gymnasium as gym
 import torch
+from BrainCo_DexHand.assets.frames import frames_state_w
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -69,6 +71,17 @@ class Revo3HandHoraEnv(DirectRLEnv):
         self.reset_height_upper = torch.zeros(cfg.scene.num_envs, device=cfg.sim.device)
 
         super().__init__(cfg, render_mode, **kwargs)
+
+        # HORA returns its actor input and auxiliary tensors as separate groups.
+        # Describe the actual reset/step API in Gym and checkpoint metadata.
+        self.single_observation_space = gym.spaces.Dict({
+            "obs": self.single_observation_space["policy"],
+            "priv_info": gym.spaces.Box(-np.inf, np.inf, shape=(cfg.priv_info_dim,), dtype=np.float32),
+            "proprio_hist": gym.spaces.Box(
+                -np.inf, np.inf, shape=(cfg.prop_hist_len, cfg.observation_space // 3), dtype=np.float32
+            ),
+        })
+        self.observation_space = gym.vector.utils.batch_space(self.single_observation_space, self.num_envs)
 
         self.num_hand_dofs = self.hand.num_joints
 
@@ -139,14 +152,27 @@ class Revo3HandHoraEnv(DirectRLEnv):
 
         # grasp_cache
         self.scale_ids = torch.zeros(self.num_envs, 1, device=self.device, dtype=torch.int32)
-        cache_path = f"{self.cfg.grasp_cache_path}.npy"
-        if os.path.exists(cache_path):
-            self.saved_grasping_states = torch.from_numpy(np.load(cache_path)).float().to(self.device)
-            self.bucket_grasp = self.saved_grasping_states.shape[0]
+        self.saved_grasping_states = None
+        if self.cfg.grasp_cache_path:
+            from BrainCo_DexHand.assets.description import DESCRIPTION_REVISION
+            with np.load(self.cfg.grasp_cache_path, allow_pickle=False) as cache:
+                if str(cache["asset_revision"].item()) != DESCRIPTION_REVISION:
+                    raise ValueError("Grasp cache asset revision does not match brainco-description")
+                if cache["joint_names"].tolist() != self.hand.joint_names:
+                    raise ValueError("Grasp cache joint order does not match the articulation")
+                states = torch.as_tensor(cache["states"], device=self.device, dtype=torch.float32)
+            if states.ndim != 2 or states.shape[1] != self.num_hand_dofs + 7 or not len(states):
+                raise ValueError("Grasp cache must contain nonempty [joint positions, object xyz/wxyz] rows")
+            if not torch.isfinite(states).all():
+                raise ValueError("Grasp cache contains non-finite states")
+            if ((states[:, :ndof] < self.hand_dof_lower_limits[0]) |
+                    (states[:, :ndof] > self.hand_dof_upper_limits[0])).any():
+                raise ValueError("Grasp cache exceeds task joint limits")
+            if not torch.allclose(states[:, -4:].norm(dim=-1), torch.ones(len(states), device=self.device), atol=1e-4):
+                raise ValueError("Grasp cache object quaternions must be normalized")
+            self.saved_grasping_states = states
+            self.bucket_grasp = len(states)
             self.bucket_env = self.num_envs
-        else:
-            print(f"[WARN] Grasp cache not found: {cache_path}, falling back to default pose.")
-            self.saved_grasping_states = None
 
         self.rot_axis = torch.tensor(self.cfg.rot_axis, dtype=torch.float32).repeat(self.num_envs, 1).to(self.device)
 
@@ -388,10 +414,12 @@ class Revo3HandHoraEnv(DirectRLEnv):
 
     def _refresh_lab(self):
         # data for hand
-        self.fingertip_pos = self.hand.data.body_pos_w[:, self.finger_bodies]
-        self.fingertip_rot = self.hand.data.body_quat_w[:, self.finger_bodies]
+        tip_names = [self.hand.body_names[i].replace("_DIP_link", "_tip_Link") for i in self.finger_bodies]
+        tip_state = frames_state_w(self.hand, tip_names)
+        self.fingertip_pos = tip_state[:, :, :3].clone()
+        self.fingertip_rot = tip_state[:, :, 3:7]
         self.fingertip_pos -= self.scene.env_origins.repeat((1, self.num_fingertips)).reshape(self.num_envs, self.num_fingertips, 3)
-        self.fingertip_velocities = self.hand.data.body_vel_w[:, self.finger_bodies]
+        self.fingertip_velocities = tip_state[:, :, 7:13]
 
         self.hand_dof_pos = self.hand.data.joint_pos
         self.hand_dof_vel = self.hand.data.joint_vel

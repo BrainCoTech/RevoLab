@@ -11,7 +11,7 @@ from . import agents
 
 
 gym.register(
-    id="BrainCo-Dexsuite-Revo3-Right-Lift-v0",
+    id="BrainCo-Dexsuite-Revo3-Right-Lift-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -24,7 +24,7 @@ gym.register(
 )
 
 gym.register(
-    id="BrainCo-Dexsuite-Revo3-Right-Lift-Play-v0",
+    id="BrainCo-Dexsuite-Revo3-Right-Lift-Play-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={

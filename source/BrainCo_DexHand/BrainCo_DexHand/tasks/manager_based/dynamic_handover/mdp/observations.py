@@ -1,29 +1,23 @@
 from __future__ import annotations
 
 import torch
+from BrainCo_DexHand.assets.frames import frame_state_w
 
 import isaaclab.utils.math as math_utils
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.managers import SceneEntityCfg
 
-RIGHT_PALM_BODY_NAMES = ("right_palm", "right_hand_base_link", "palm", "base_link")
-LEFT_PALM_BODY_NAMES = ("left_palm", "left_hand_base_link", "palm", "base_link")
+RIGHT_PALM_FRAME = "right_palm"
+LEFT_PALM_FRAME = "left_palm"
 
 
 def _handover_command(env: ManagerBasedRLEnv, command_name: str) -> torch.Tensor:
     return env.command_manager.get_command(command_name)
 
 
-def _first_matching_body_pos_w(robot: Articulation, body_names: tuple[str, ...]) -> torch.Tensor:
-    for body_name in body_names:
-        try:
-            body_ids, _ = robot.find_bodies(body_name)
-        except ValueError:
-            continue
-        if body_ids:
-            return robot.data.body_pos_w[:, body_ids[0]]
-    return robot.data.root_pos_w
+def _palm_pos_w(robot: Articulation, frame_name: str) -> torch.Tensor:
+    return frame_state_w(robot, frame_name)[:, :3]
 
 
 def _source_receiver_palm_pos_w(
@@ -34,8 +28,8 @@ def _source_receiver_palm_pos_w(
     command = _handover_command(env, command_name)
     source_is_left = command[:, 0] > 0.0
     robot: Articulation = env.scene[robot_cfg.name]
-    right_palm = _first_matching_body_pos_w(robot, RIGHT_PALM_BODY_NAMES)
-    left_palm = _first_matching_body_pos_w(robot, LEFT_PALM_BODY_NAMES)
+    right_palm = _palm_pos_w(robot, RIGHT_PALM_FRAME)
+    left_palm = _palm_pos_w(robot, LEFT_PALM_FRAME)
     source_palm = torch.where(source_is_left.unsqueeze(-1), left_palm, right_palm)
     receiver_palm = torch.where(source_is_left.unsqueeze(-1), right_palm, left_palm)
     return source_palm, receiver_palm
@@ -152,23 +146,11 @@ def _palm_pos_in_robot_root(
     env: ManagerBasedRLEnv,
     source_cfg: SceneEntityCfg,
     target_cfg: SceneEntityCfg,
-    body_names: tuple[str, ...],
+    frame_name: str,
 ) -> torch.Tensor:
     target_robot: Articulation = env.scene[target_cfg.name]
     source_robot: Articulation = env.scene[source_cfg.name]
-    palm_idx = None
-    for body_name in body_names:
-        try:
-            body_ids, _ = source_robot.find_bodies(body_name)
-        except ValueError:
-            continue
-        if body_ids:
-            palm_idx = body_ids[0]
-            break
-    if palm_idx is None:
-        palm_pos = source_robot.data.root_pos_w
-    else:
-        palm_pos = source_robot.data.body_pos_w[:, palm_idx]
+    palm_pos = frame_state_w(source_robot, frame_name)[:, :3]
     return math_utils.quat_apply_inverse(target_robot.data.root_quat_w, palm_pos - target_robot.data.root_pos_w)
 
 
@@ -180,7 +162,7 @@ def right_palm_pos_in_robot_root(
         env,
         source_cfg=robot_cfg,
         target_cfg=robot_cfg,
-        body_names=("right_palm", "right_hand_base_link", "palm", "base_link"),
+        frame_name="right_palm",
     )
 
 
@@ -192,7 +174,7 @@ def left_palm_pos_in_robot_root(
         env,
         source_cfg=robot_cfg,
         target_cfg=robot_cfg,
-        body_names=("left_palm", "left_hand_base_link", "palm", "base_link"),
+        frame_name="left_palm",
     )
 
 

@@ -20,7 +20,6 @@ hardware = [
 
 [project.scripts]
 revo3-run-policy = "revo3_deploy.cli.run_policy:main"
-revo3-export-policy = "revo3_deploy.cli.export_policy:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

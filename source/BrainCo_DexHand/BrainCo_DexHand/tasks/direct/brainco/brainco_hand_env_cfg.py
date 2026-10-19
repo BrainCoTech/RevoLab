@@ -14,7 +14,7 @@ from isaaclab.sim.spawners.materials.physics_materials_cfg import RigidBodyMater
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
-from BrainCo_DexHand.assets import BRAINCO_CFG
+from BrainCo_DexHand.assets.revo3_repose import BRAINCO_CFG
 
 
 @configclass
@@ -23,7 +23,7 @@ class BrainCoHandEnvCfg(DirectRLEnvCfg):
     decimation = 4
     episode_length_s = 10.0
     action_space = 21
-    observation_space = 147  # (full)
+    observation_space = 152  # 42 joint + 13 object + 11 goal + 65 fingertip + 21 action values
     state_space = 0
     asymmetric_obs = False
     obs_type = "full"
@@ -72,11 +72,11 @@ class BrainCoHandEnvCfg(DirectRLEnvCfg):
         "right_little_DIP_joint",
     ]
     fingertip_body_names = [
-        'right_little_DIP_Link',
-        'right_ring_DIP_Link',
-        'right_middle_DIP_Link',
-        'right_index_DIP_Link',
-        'right_thumb_DIP_Link',
+        'right_little_DIP_link',
+        'right_ring_DIP_link',
+        'right_middle_DIP_link',
+        'right_index_DIP_link',
+        'right_thumb_DIP_link',
     ]
 
     # in-hand object

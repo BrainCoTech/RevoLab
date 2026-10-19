@@ -1,7 +1,8 @@
-# Contributing to BrainCo Isaac Lab
+# Contributing to RevoLab
 
 Thank you for your interest in contributing to BrainCo's public Isaac Lab task suite.
-This repository is maintained by BrainCo, Inc. and is released under the MIT License.
+This repository is maintained by BrainCo, Inc. Its own code uses the MIT License;
+retain the exceptions documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Ways to Contribute
 
@@ -11,8 +12,8 @@ This repository is maintained by BrainCo, Inc. and is released under the MIT Lic
 
 ## Task Naming Convention
 
-Public Revo3 task IDs follow the `BrainCo-<framework>-<robot>-<task>-v0`
-convention (for example, `BrainCo-Direct-Revo3-Repose-Cube-v0` or `BrainCo-Dexsuite-Revo3-Right-Lift-v0`). New task
+Public Revo3 task IDs follow the `BrainCo-<framework>-<robot>-<task>-v1`
+convention (for example, `BrainCo-Direct-Revo3-Repose-Cube-v1` or `BrainCo-Dexsuite-Revo3-Right-Lift-v1`). New task
 registrations contributed to this repository should follow the same pattern
 so that IDs remain consistent across frameworks and robots.
 
@@ -29,9 +30,7 @@ Please open a GitHub issue with:
 ## Reporting Security Vulnerabilities
 
 Please do **not** file public GitHub issues for security problems.
-Instead, report them privately to the maintainers. We will
-acknowledge receipt within a reasonable timeframe and work with you on a fix
-and coordinated disclosure.
+Follow the private contact instructions in [SECURITY.md](SECURITY.md).
 
 ## Pull Requests
 
@@ -55,3 +54,24 @@ and coordinated disclosure.
 Need help? Reach out through the following channels:
 - Submit a ticket: [https://web.static.brainco.cn/work-order](https://web.static.brainco.cn/work-order)
 - GitHub: [https://github.com/BrainCoTech](https://github.com/BrainCoTech)
+
+## Validation
+
+In a separate Python 3.11 environment with `usd-core==26.8`, NumPy and PyYAML,
+run the same offline checks as CI after initializing the asset submodule:
+
+```bash
+bash scripts/setup_assets.sh
+python scripts/check_assets.py
+python -m compileall -q source scripts deploy
+python -m unittest discover -s tests -v
+git diff --check
+```
+
+Use the Isaac Lab runtime for GPU checks described in README.md. Do not install
+standalone `usd-core` into that simulation environment. Report the commands and
+results actually run; an offline pass does not establish training performance.
+
+## Asset changes
+
+Robot descriptions belong in brainco-description. Update its pinned submodule commit and the task adapters together; do not vendor robot meshes into RevoLab. Run the offline asset check and GPU smoke checks described in README.md. A physics change requires reviewing all dependent policy contracts.

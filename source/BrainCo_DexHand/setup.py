@@ -43,13 +43,11 @@ setup(
             "**/*.json",
         ]
     },
-    python_requires=">=3.10",
+    python_requires=">=3.11,<3.12",
     classifiers=[
         "Natural Language :: English",
-        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
-        "Isaac Sim :: 4.5.0",
-        "Isaac Sim :: 5.0.0",
+        "Isaac Sim :: 5.1.0",
     ],
     zip_safe=False,
 )

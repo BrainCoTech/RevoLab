@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import random
 from typing import TYPE_CHECKING
 
@@ -90,4 +91,7 @@ def update_rsl_rl_cfg(agent_cfg: RslRlBaseRunnerCfg, args_cli: argparse.Namespac
         agent_cfg.wandb_project = args_cli.log_project_name
         agent_cfg.neptune_project = args_cli.log_project_name
 
-    return agent_cfg
+    # The pinned Isaac Lab checkout supplies the RSL-RL 5 configuration adapter.
+    from isaaclab_rl.rsl_rl import handle_deprecated_rsl_rl_cfg
+
+    return handle_deprecated_rsl_rl_cfg(agent_cfg, importlib.metadata.version("rsl-rl-lib"))

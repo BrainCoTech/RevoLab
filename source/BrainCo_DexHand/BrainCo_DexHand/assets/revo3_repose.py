@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import math
-from pathlib import Path
+from .description import REVO3_RIGHT_USD
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
@@ -17,7 +17,7 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 BRAINCO_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=str(Path(__file__).resolve().parents[4] / "assets" / "usd" / "revo3_right.usd"),
+        usd_path=REVO3_RIGHT_USD,
         activate_contact_sensors=True,  # Enable contact sensors for fingertips
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=True,
@@ -43,7 +43,7 @@ BRAINCO_CFG = ArticulationCfg(
         joint_pos={
             # Thumb
             "right_thumb_CMP_joint": 0.43,
-            "right_thumb_CMR_joint": 1.57,
+            "right_thumb_CMR_joint": 1.35,
             "right_thumb_MCP_joint": 0.0,
             "right_thumb_PIP_joint": 0.13,
             "right_thumb_DIP_joint": 0.18,
@@ -73,6 +73,7 @@ BRAINCO_CFG = ArticulationCfg(
         "brainco_hand": ImplicitActuatorCfg(
             joint_names_expr=["right_.*_joint"],
             effort_limit_sim=0.5,
+            velocity_limit_sim=6.28,
             stiffness=3.0,
             damping=0.1,
             friction=0.01,

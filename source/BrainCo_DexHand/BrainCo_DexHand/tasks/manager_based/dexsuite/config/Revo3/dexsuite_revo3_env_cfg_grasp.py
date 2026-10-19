@@ -7,7 +7,6 @@
 
 import torch
 import isaaclab.sim as sim_utils
-from pxr import Sdf, Usd, UsdPhysics
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.managers import EventTermCfg as EventTerm
@@ -17,7 +16,8 @@ from isaaclab.managers import SceneEntityCfg
 from isaaclab.sensors import ContactSensor, ContactSensorCfg
 from isaaclab.utils import configclass
 
-from BrainCo_DexHand.assets.tianji_revo3_right import TIANJI_REVO3_RIGHT_CFG
+from BrainCo_DexHand.assets.revotron_single_right_revo3 import REVOTRON_SINGLE_RIGHT_REVO3_CFG
+from BrainCo_DexHand.assets.revotron_bimanual_revo3 import RIGHT_ARM_JOINT_NAMES, RIGHT_FINGER_JOINT_NAMES
 
 from ... import dexsuite_env_cfg_grasp_tianji as dexsuite
 from ... import mdp
@@ -25,11 +25,11 @@ from ... import mdp
 
 TIANJI_PALM_BODY_NAME = dexsuite.TIANJI_PALM_BODY_NAME
 TIANJI_HAND_DIP_BODIES = [
-    "right_little_DIP_Link",
-    "right_ring_DIP_Link",
-    "right_middle_DIP_Link",
-    "right_index_DIP_Link",
-    "right_thumb_DIP_Link",
+    "right_little_DIP_link",
+    "right_ring_DIP_link",
+    "right_middle_DIP_link",
+    "right_index_DIP_link",
+    "right_thumb_DIP_link",
 ]
 TIANJI_HAND_TIP_BODIES = [
     TIANJI_PALM_BODY_NAME,
@@ -41,125 +41,21 @@ TIANJI_HAND_TIP_BODIES = [
 ]
 
 
-def _resolve_env_ids(env: ManagerBasedRLEnv, env_ids: torch.Tensor | list[int] | slice | None) -> list[int]:
-    if env_ids is None or env_ids == slice(None):
-        return list(range(env.num_envs))
-    if isinstance(env_ids, torch.Tensor):
-        return env_ids.cpu().tolist()
-    return list(env_ids)
-
-
-def _collect_collision_prims(stage: Usd.Stage, link_prim_path: str) -> list[Sdf.Path]:
-    """Collect collision prims under a link, falling back to the link prim."""
-    link_prim = stage.GetPrimAtPath(link_prim_path)
-    if not link_prim.IsValid():
-        return []
-    collision_prims: list[Sdf.Path] = []
-    for prim in Usd.PrimRange(link_prim):
-        if prim.HasAPI(UsdPhysics.CollisionAPI):
-            collision_prims.append(prim.GetPath())
-    return collision_prims
-
-
-def _get_filtered_pairs_rel(prim: Usd.Prim) -> Usd.Relationship:
-    """Return a relationship that authors filtered collision pairs."""
-    if hasattr(UsdPhysics, "FilteredPairsAPI"):
-        api = UsdPhysics.FilteredPairsAPI.Apply(prim)
-        if hasattr(api, "GetFilteredPairsRel"):
-            rel = api.GetFilteredPairsRel()
-            if not rel:
-                rel = api.CreateFilteredPairsRel()
-            return rel
-    rel = prim.GetRelationship("filteredPairs")
-    if not rel:
-        rel = prim.CreateRelationship("filteredPairs")
-    return rel
-
-
-def _build_link_pairs(
-    group_links: dict[str, list[str]],
-    filtered_group_pairs: list[tuple[str, str]] | None,
-    self_filtered_groups: list[str] | None,
-) -> list[tuple[str, str]]:
-    filtered_group_pairs = filtered_group_pairs or []
-    self_filtered_groups = self_filtered_groups or []
-    pairs: set[tuple[str, str]] = set()
-
-    for group_name in self_filtered_groups:
-        links = group_links.get(group_name, [])
-        for i in range(len(links)):
-            for j in range(i + 1, len(links)):
-                a, b = links[i], links[j]
-                pairs.add((a, b) if a < b else (b, a))
-
-    for group_a, group_b in filtered_group_pairs:
-        for a in group_links.get(group_a, []):
-            for b in group_links.get(group_b, []):
-                if a == b:
-                    continue
-                pairs.add((a, b) if a < b else (b, a))
-
-    return sorted(pairs)
-
-
-def disable_collision_pairs_filtered(
-    env: ManagerBasedRLEnv,
-    env_ids: torch.Tensor | list[int] | slice | None,
-    group_links: dict[str, list[str]],
-    filtered_group_pairs: list[tuple[str, str]] | None = None,
-    self_filtered_groups: list[str] | None = None,
-    asset_root: str = "Robot",
-) -> None:
-    """Disable collisions using USD FilteredPairsAPI based on link groups."""
-    stage = sim_utils.get_current_stage()
-    if stage is None:
-        return
-
-    link_pairs = _build_link_pairs(group_links, filtered_group_pairs, self_filtered_groups)
-    if not link_pairs:
-        return
-
-    for env_id in _resolve_env_ids(env, env_ids):
-        env_path = f"{env.scene.env_ns}/env_{env_id}"
-        robot_path = f"{env_path}/{asset_root}"
-        for link_a, link_b in link_pairs:
-            link_a_path = f"{robot_path}/{link_a}"
-            link_b_path = f"{robot_path}/{link_b}"
-            prims_a = _collect_collision_prims(stage, link_a_path) or [Sdf.Path(link_a_path)]
-            prims_b = _collect_collision_prims(stage, link_b_path) or [Sdf.Path(link_b_path)]
-
-            for prim_a_path in prims_a:
-                prim_a = stage.GetPrimAtPath(prim_a_path)
-                if not prim_a.IsValid():
-                    continue
-                rel_a = _get_filtered_pairs_rel(prim_a)
-                for prim_b_path in prims_b:
-                    prim_b = stage.GetPrimAtPath(prim_b_path)
-                    if not prim_b.IsValid():
-                        continue
-                    rel_a.AddTarget(prim_b_path)
-                    rel_b = _get_filtered_pairs_rel(prim_b)
-                    rel_b.AddTarget(prim_a_path)
-
-
 @configclass
 class Revo3RelJointPosActionCfg:
-    """Relative joint position control for the public Revo3 arm-hand robot."""
-
     action = mdp.RelativeJointPositionActionCfg(
-        asset_name="robot",
-        joint_names=[".*"],
-        scale=0.1,
+        asset_name="robot", joint_names=RIGHT_ARM_JOINT_NAMES + RIGHT_FINGER_JOINT_NAMES,
+        preserve_order=True, scale=0.1,
     )
 
 
 def tianji_hand_contacts(env: ManagerBasedRLEnv, threshold: float) -> torch.Tensor:
     """Thumb plus at least one other fingertip contact for the Tianji hand."""
-    thumb_contact_sensor: ContactSensor = env.scene.sensors["right_thumb_DIP_Link_object_s"]
-    index_contact_sensor: ContactSensor = env.scene.sensors["right_index_DIP_Link_object_s"]
-    middle_contact_sensor: ContactSensor = env.scene.sensors["right_middle_DIP_Link_object_s"]
-    ring_contact_sensor: ContactSensor = env.scene.sensors["right_ring_DIP_Link_object_s"]
-    little_contact_sensor: ContactSensor = env.scene.sensors["right_little_DIP_Link_object_s"]
+    thumb_contact_sensor: ContactSensor = env.scene.sensors["right_thumb_DIP_link_object_s"]
+    index_contact_sensor: ContactSensor = env.scene.sensors["right_index_DIP_link_object_s"]
+    middle_contact_sensor: ContactSensor = env.scene.sensors["right_middle_DIP_link_object_s"]
+    ring_contact_sensor: ContactSensor = env.scene.sensors["right_ring_DIP_link_object_s"]
+    little_contact_sensor: ContactSensor = env.scene.sensors["right_little_DIP_link_object_s"]
 
     thumb_contact = thumb_contact_sensor.data.force_matrix_w.view(env.num_envs, 3)
     index_contact = index_contact_sensor.data.force_matrix_w.view(env.num_envs, 3)
@@ -219,18 +115,6 @@ def tianji_orientation_command_error_tanh(
 class Revo3ReorientRewardCfg(dexsuite.RewardsCfg):
     """Reward configuration dedicated to Revo3 lift/reorient tasks."""
 
-    # any_finger_contact = RewTerm(
-    #     func=mdp.any_finger_contact,
-    #     weight=0.7,
-    #     params={"threshold": 1.0},
-    # )
-
-    good_finger_contact = RewTerm(
-        func=tianji_hand_contacts,
-        weight=1.0,
-        params={"threshold": 1.0},
-    )
-
     position_tracking = RewTerm(
         func=tianji_position_command_error_tanh,
         weight=5.0,
@@ -267,11 +151,11 @@ class Revo3MixinCfg:
         self.commands.object_pose.body_name = TIANJI_PALM_BODY_NAME
         self.commands.object_pose.debug_vis = True
 
-        self.scene.robot = TIANJI_REVO3_RIGHT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = REVOTRON_SINGLE_RIGHT_REVO3_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
-        base_joint_pos = dict(TIANJI_REVO3_RIGHT_CFG.init_state.joint_pos) if (
-            hasattr(TIANJI_REVO3_RIGHT_CFG.init_state, "joint_pos")
-            and TIANJI_REVO3_RIGHT_CFG.init_state.joint_pos is not None
+        base_joint_pos = dict(REVOTRON_SINGLE_RIGHT_REVO3_CFG.init_state.joint_pos) if (
+            hasattr(REVOTRON_SINGLE_RIGHT_REVO3_CFG.init_state, "joint_pos")
+            and REVOTRON_SINGLE_RIGHT_REVO3_CFG.init_state.joint_pos is not None
         ) else {}
         self.scene.robot.init_state = ArticulationCfg.InitialStateCfg(
             pos=(1, 0.0, 0.58),
@@ -315,38 +199,19 @@ class Revo3MixinCfg:
             clip=(-20.0, 20.0),
         )
 
-        self.observations.proprio.hand_tips_state_b.params["body_asset_cfg"].body_names = TIANJI_HAND_TIP_BODIES
+        self.observations.proprio.hand_tips_state_b.params["frame_names"] = TIANJI_HAND_TIP_BODIES
 
         if hasattr(self.rewards, "fingers_to_object"):
             self.rewards.fingers_to_object.params["asset_cfg"] = SceneEntityCfg(
                 "robot",
-                body_names=TIANJI_HAND_TIP_BODIES,
             )
+            self.rewards.fingers_to_object.params["frame_names"] = TIANJI_HAND_TIP_BODIES
         if hasattr(self.rewards, "fingers_to_object_delta"):
             self.rewards.fingers_to_object_delta.params["asset_cfg"] = SceneEntityCfg(
                 "robot",
-                body_names=TIANJI_HAND_TIP_BODIES,
             )
 
-        self.events.disable_collision_pairs_filtered = EventTerm(
-            func=disable_collision_pairs_filtered,
-            mode="prestartup",
-            params={
-                "asset_root": "Robot",
-                "group_links": {
-                    "palm": ["right_base_link"],
-                    "mcp": [
-                        "right_thumb_MCP_Link",
-                        "right_index_MCP_Link",
-                        "right_middle_MCP_Link",
-                        "right_ring_MCP_Link",
-                        "right_little_MCP_Link",
-                    ],
-                },
-                "filtered_group_pairs": [("palm", "mcp")],
-                "self_filtered_groups": [],
-            },
-        )
+            self.rewards.fingers_to_object_delta.params["frame_names"] = TIANJI_HAND_TIP_BODIES
 
 
 @configclass

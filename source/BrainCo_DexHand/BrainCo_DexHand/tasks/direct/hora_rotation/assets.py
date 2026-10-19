@@ -1,14 +1,13 @@
 """Asset configs for Revo3 right hand in-hand rotation."""
 from __future__ import annotations
 
-from pathlib import Path
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg, RigidObjectCfg
 
-_REPO_ROOT = Path(__file__).resolve().parents[6]
-_REVO3_USD = str(_REPO_ROOT / "assets" / "usd" / "revo3_right.usd")
+from BrainCo_DexHand.assets.description import REVO3_RIGHT_USD
+from .object_visuals import spawn_rotation_object
 
 # Object initial positions in env-local coordinates.
 OBJECT_INIT_ROT = (1.0, 0.0, 0.0, 0.0)
@@ -22,7 +21,7 @@ BALL_INIT_POS = (0.000, -0.08, 1.645)
 REVO3_HAND_CYLINDER_CFG = ArticulationCfg(
     prim_path="/World/envs/env_.*/hand",
     spawn=sim_utils.UsdFileCfg(
-        usd_path=_REVO3_USD,
+        usd_path=REVO3_RIGHT_USD,
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=True,
@@ -47,16 +46,16 @@ REVO3_HAND_CYLINDER_CFG = ArticulationCfg(
         pos=HAND_INIT_POS,
         rot=HAND_INIT_ROT,
         joint_pos={
-            "right_thumb_CMP_joint":  1.65, "right_thumb_CMR_joint":  1.35,
+            "right_thumb_CMP_joint":  1.65, "right_thumb_CMR_joint":  1.20,
             "right_thumb_MCP_joint":  0.35, "right_thumb_PIP_joint":  0.20,
             "right_thumb_DIP_joint":  0.00,
-            "right_index_MPR_joint": -0.25, "right_index_MCP_joint":  1.20,
+            "right_index_MPR_joint":  0.25, "right_index_MCP_joint":  1.20,
             "right_index_PIP_joint":  0.30, "right_index_DIP_joint":  0.00,
             "right_middle_MPR_joint": 0.00, "right_middle_MCP_joint": 0.95,
             "right_middle_PIP_joint": 0.20, "right_middle_DIP_joint": 0.00,
-            "right_ring_MPR_joint":   0.20, "right_ring_MCP_joint":   0.95,
+            "right_ring_MPR_joint":  -0.20, "right_ring_MCP_joint":   0.95,
             "right_ring_PIP_joint":   0.20, "right_ring_DIP_joint":   0.00,
-            "right_little_MPR_joint": 0.25, "right_little_MCP_joint": 1.20,
+            "right_little_MPR_joint": -0.25, "right_little_MCP_joint": 1.20,
             "right_little_PIP_joint": 0.30, "right_little_DIP_joint": 0.00,
         },
     ),
@@ -64,6 +63,7 @@ REVO3_HAND_CYLINDER_CFG = ArticulationCfg(
         "fingers": ImplicitActuatorCfg(
             joint_names_expr=["right_.*"],
             effort_limit_sim=1.0,
+            velocity_limit_sim=6.28,
             stiffness=0.0,
             damping=0.0,
             friction=0.01,
@@ -76,7 +76,7 @@ REVO3_HAND_CYLINDER_CFG = ArticulationCfg(
 REVO3_HAND_BALL_CFG = ArticulationCfg(
     prim_path="/World/envs/env_.*/hand",
     spawn=sim_utils.UsdFileCfg(
-        usd_path=_REVO3_USD,
+        usd_path=REVO3_RIGHT_USD,
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=True,
@@ -101,16 +101,16 @@ REVO3_HAND_BALL_CFG = ArticulationCfg(
         pos=HAND_INIT_POS,
         rot=HAND_INIT_ROT,
         joint_pos={
-            "right_thumb_CMP_joint":  1.65, "right_thumb_CMR_joint":  1.35,
+            "right_thumb_CMP_joint":  1.65, "right_thumb_CMR_joint":  1.20,
             "right_thumb_MCP_joint":  0.50, "right_thumb_PIP_joint":  0.00,
             "right_thumb_DIP_joint":  0.00,
-            "right_index_MPR_joint": -0.25, "right_index_MCP_joint":  1.40,
+            "right_index_MPR_joint":  0.25, "right_index_MCP_joint":  1.40,
             "right_index_PIP_joint":  0.00, "right_index_DIP_joint":  0.00,
             "right_middle_MPR_joint": 0.00, "right_middle_MCP_joint": 1.05,
             "right_middle_PIP_joint": 0.05, "right_middle_DIP_joint": 0.00,
-            "right_ring_MPR_joint":   0.20, "right_ring_MCP_joint":   1.10,
+            "right_ring_MPR_joint":  -0.20, "right_ring_MCP_joint":   1.10,
             "right_ring_PIP_joint":   0.00, "right_ring_DIP_joint":   0.00,
-            "right_little_MPR_joint": 0.20, "right_little_MCP_joint": 1.40,
+            "right_little_MPR_joint": -0.20, "right_little_MCP_joint": 1.40,
             "right_little_PIP_joint": 0.00, "right_little_DIP_joint": 0.00,
         },
     ),
@@ -118,6 +118,7 @@ REVO3_HAND_BALL_CFG = ArticulationCfg(
         "fingers": ImplicitActuatorCfg(
             joint_names_expr=["right_.*"],
             effort_limit_sim=1.0,
+            velocity_limit_sim=6.28,
             stiffness=0.0,
             damping=0.0,
             friction=0.01,
@@ -146,6 +147,7 @@ _COMMON_MATERIAL = sim_utils.RigidBodyMaterialCfg(static_friction=1.0, dynamic_f
 BALL_OBJECT_CFG = RigidObjectCfg(
     prim_path="/World/envs/env_.*/object",
     spawn=sim_utils.SphereCfg(
+        func=spawn_rotation_object,
         radius=0.030,
         rigid_props=_COMMON_RIGID,
         mass_props=_COMMON_MASS,
@@ -158,6 +160,7 @@ BALL_OBJECT_CFG = RigidObjectCfg(
 CYLINDER_OBJECT_CFG = RigidObjectCfg(
     prim_path="/World/envs/env_.*/object",
     spawn=sim_utils.CylinderCfg(
+        func=spawn_rotation_object,
         radius=0.03, height=0.070,
         rigid_props=_COMMON_RIGID,
         mass_props=_COMMON_MASS,

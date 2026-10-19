@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import torch
+from BrainCo_DexHand.assets.frames import frames_state_w
 from typing import TYPE_CHECKING
 
 from isaaclab.assets import Articulation, RigidObject
@@ -101,10 +102,11 @@ def body_state_b_with_offset(
     return out.view(env.num_envs, -1)
 
 
-def body_state_b(
+def frame_state_b(
     env: ManagerBasedRLEnv,
     body_asset_cfg: SceneEntityCfg,
     base_asset_cfg: SceneEntityCfg,
+    frame_names: list[str],
 ) -> torch.Tensor:
     """Body state (pos, quat, lin vel, ang vel) in the base asset's root frame.
 
@@ -121,11 +123,11 @@ def body_state_b(
     """
     body_asset: Articulation = env.scene[body_asset_cfg.name]
     base_asset: Articulation = env.scene[base_asset_cfg.name]
-    # get world pose of bodies
-    body_pos_w = body_asset.data.body_pos_w[:, body_asset_cfg.body_ids].view(-1, 3)
-    body_quat_w = body_asset.data.body_quat_w[:, body_asset_cfg.body_ids].view(-1, 4)
-    body_lin_vel_w = body_asset.data.body_lin_vel_w[:, body_asset_cfg.body_ids].view(-1, 3)
-    body_ang_vel_w = body_asset.data.body_ang_vel_w[:, body_asset_cfg.body_ids].view(-1, 3)
+    state = frames_state_w(body_asset, frame_names)
+    body_pos_w = state[:, :, :3].reshape(-1, 3)
+    body_quat_w = state[:, :, 3:7].reshape(-1, 4)
+    body_lin_vel_w = state[:, :, 7:10].reshape(-1, 3)
+    body_ang_vel_w = state[:, :, 10:13].reshape(-1, 3)
     num_bodies = int(body_pos_w.shape[0] / env.num_envs)
     # get world pose of base frame
     root_pos_w = base_asset.data.root_link_pos_w.unsqueeze(1).repeat_interleave(num_bodies, dim=1).view(-1, 3)

@@ -35,7 +35,7 @@ def _resolve_isaaclab_root() -> Path:
 def _ensure_default_task(argv: list[str]) -> list[str]:
     if any(arg == "--task" or arg.startswith("--task=") for arg in argv):
         return argv
-    return [*argv, "--task", "BrainCo-Dynamic-Handover-Revo3-Cube-v0"]
+    return [*argv, "--task", "BrainCo-Dynamic-Handover-Revo3-Cube-v1"]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -50,7 +50,7 @@ parser.add_argument("--video", action="store_true", default=False, help="Record 
 parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
 parser.add_argument("--video_interval", type=int, default=2000, help="Interval between video recordings (in steps).")
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="BrainCo-Dynamic-Handover-Revo3-Cube-v0", help="Name of the task.")
+parser.add_argument("--task", type=str, default="BrainCo-Dynamic-Handover-Revo3-Cube-v1", help="Name of the task.")
 parser.add_argument("--agent", type=str, default="rl_games_cfg_entry_point", help="Name of the RL-Games config entry point.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment.")
 parser.add_argument("--distributed", action="store_true", default=False, help="Run training with multiple GPUs or nodes.")
@@ -88,12 +88,12 @@ from isaaclab.envs import (  # noqa: E402
 )
 from isaaclab.utils.assets import retrieve_file_path  # noqa: E402
 from isaaclab.utils.dict import print_dict  # noqa: E402
-from isaaclab.utils.io import dump_pickle, dump_yaml  # noqa: E402
+from isaaclab.utils.io import dump_yaml  # noqa: E402
 from isaaclab_rl.rl_games import RlGamesGpuEnv, RlGamesVecEnvWrapper  # noqa: E402
 import isaaclab_tasks  # noqa: F401, E402
 from isaaclab_tasks.utils.hydra import hydra_task_config  # noqa: E402
 
-import BrainCo_DexHand  # noqa: F401, E402
+import BrainCo_DexHand.tasks  # noqa: F401, E402
 import BrainCo_DexHand.tasks.manager_based.dynamic_handover  # noqa: F401, E402
 
 
@@ -175,6 +175,8 @@ def _print_env_debug(env, env_cfg, agent_cfg, log_root_path: str, log_dir: str) 
 def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: dict):
     env_cfg.scene.num_envs = args_cli.num_envs if args_cli.num_envs is not None else env_cfg.scene.num_envs
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
+    agent_cfg["params"]["config"]["device"] = env_cfg.sim.device
+    agent_cfg["params"]["config"]["device_name"] = env_cfg.sim.device
 
     if args_cli.seed == -1:
         args_cli.seed = random.randint(0, 10000)
@@ -208,8 +210,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
 
     dump_yaml(os.path.join(log_root_path, log_dir, "params", "env.yaml"), env_cfg)
     dump_yaml(os.path.join(log_root_path, log_dir, "params", "agent.yaml"), agent_cfg)
-    dump_pickle(os.path.join(log_root_path, log_dir, "params", "env.pkl"), env_cfg)
-    dump_pickle(os.path.join(log_root_path, log_dir, "params", "agent.pkl"), agent_cfg)
 
     rl_device = agent_cfg["params"]["config"]["device"]
     clip_obs = agent_cfg["params"]["env"].get("clip_observations", math.inf)
@@ -224,6 +224,11 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         omni.log.warn("IO descriptors are only supported for manager based RL environments.")
 
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+    from BrainCo_DexHand.artifacts import write_asset_contract, validate_asset_contract
+    if args_cli.checkpoint is not None:
+        validate_asset_contract(env, args_cli.task, resume_path)
+    write_asset_contract(env, args_cli.task, os.path.join(log_root_path, log_dir))
+
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
 

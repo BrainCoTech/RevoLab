@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import torch
+from BrainCo_DexHand.assets.frames import frames_state_w
 from typing import TYPE_CHECKING
 
 from isaaclab.assets import Articulation, RigidObject
@@ -33,8 +34,7 @@ def object_ee_distance_delta(
     std: float,
     object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    body_offset: tuple[float, float, float] | None = None,
-    body_name_to_offset: str = "base",
+    frame_names: tuple[str, ...] = ("right_palm",),
     clamp_max: float = 10.0,
     history_key: str = "_closest_ee_distance",
 ) -> torch.Tensor:
@@ -45,17 +45,7 @@ def object_ee_distance_delta(
     """
     asset: Articulation = env.scene[asset_cfg.name]
     object: RigidObject = env.scene[object_cfg.name]
-    asset_pos = asset.data.body_pos_w[:, asset_cfg.body_ids].clone()
-    asset_quat = asset.data.body_quat_w[:, asset_cfg.body_ids]
-
-    if body_offset is not None:
-        offset_tensor = torch.tensor(body_offset, device=env.device, dtype=asset_pos.dtype)
-        for i, body_id in enumerate(asset_cfg.body_ids):
-            body_name = asset.body_names[body_id]
-            if body_name == body_name_to_offset:
-                offset_world = quat_apply(asset_quat[:, i], offset_tensor.unsqueeze(0).expand(env.num_envs, -1))
-                asset_pos[:, i] = asset_pos[:, i] + offset_world
-                break
+    asset_pos = frames_state_w(asset, frame_names)[:, :, :3]
 
     object_pos = object.data.root_pos_w
     curr_dist = torch.norm(asset_pos - object_pos[:, None, :], dim=-1).max(dim=-1).values
@@ -87,8 +77,7 @@ def object_ee_distance(
     std: float,
     object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    body_offset: tuple[float, float, float] | None = None,
-    body_name_to_offset: str = "base",
+    frame_names: tuple[str, ...] = ("right_palm",),
 ) -> torch.Tensor:
     """Reward reaching the object using a tanh-kernel on end-effector distance.
 
@@ -96,17 +85,7 @@ def object_ee_distance(
     """
     asset: Articulation = env.scene[asset_cfg.name]
     object: RigidObject = env.scene[object_cfg.name]
-    asset_pos = asset.data.body_pos_w[:, asset_cfg.body_ids].clone()
-    asset_quat = asset.data.body_quat_w[:, asset_cfg.body_ids]
-
-    if body_offset is not None:
-        offset_tensor = torch.tensor(body_offset, device=env.device, dtype=asset_pos.dtype)
-        for i, body_id in enumerate(asset_cfg.body_ids):
-            body_name = asset.body_names[body_id]
-            if body_name == body_name_to_offset:
-                offset_world = quat_apply(asset_quat[:, i], offset_tensor.unsqueeze(0).expand(env.num_envs, -1))
-                asset_pos[:, i] = asset_pos[:, i] + offset_world
-                break
+    asset_pos = frames_state_w(asset, frame_names)[:, :, :3]
 
     object_pos = object.data.root_pos_w
     object_ee_distance = torch.norm(asset_pos - object_pos[:, None, :], dim=-1).max(dim=-1).values
@@ -118,8 +97,7 @@ def object_ee_distance_mean(
     std: float,
     object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-    body_offset: tuple[float, float, float] | None = None,
-    body_name_to_offset: str = "base",
+    frame_names: tuple[str, ...] = ("right_palm",),
 ) -> torch.Tensor:
     """Reward reaching the object using a tanh-kernel on mean end-effector distance.
 
@@ -127,91 +105,11 @@ def object_ee_distance_mean(
     """
     asset: Articulation = env.scene[asset_cfg.name]
     object: RigidObject = env.scene[object_cfg.name]
-    asset_pos = asset.data.body_pos_w[:, asset_cfg.body_ids].clone()
-    asset_quat = asset.data.body_quat_w[:, asset_cfg.body_ids]
-
-    if body_offset is not None:
-        offset_tensor = torch.tensor(body_offset, device=env.device, dtype=asset_pos.dtype)
-        for i, body_id in enumerate(asset_cfg.body_ids):
-            body_name = asset.body_names[body_id]
-            if body_name == body_name_to_offset:
-                offset_world = quat_apply(asset_quat[:, i], offset_tensor.unsqueeze(0).expand(env.num_envs, -1))
-                asset_pos[:, i] = asset_pos[:, i] + offset_world
-                break
+    asset_pos = frames_state_w(asset, frame_names)[:, :, :3]
 
     object_pos = object.data.root_pos_w
     object_ee_distance = torch.norm(asset_pos - object_pos[:, None, :], dim=-1).mean(dim=-1)
     return 1 - torch.tanh(object_ee_distance / std)
-
-
-def any_finger_contact(
-    env: ManagerBasedRLEnv,
-    threshold: float,
-) -> torch.Tensor:
-    """Reward any fingertip contact with the object above threshold.
-
-    Supports both legacy LEAP sensor names and Arm-BrainCo `right_*` sensor names.
-    """
-
-    sensor_names = [
-        # Legacy LEAP names
-        "thumb_fingertip_object_s",
-        "fingertip_object_s",
-        "fingertip_2_object_s",
-        "fingertip_3_object_s",
-        "fingertip_4_object_s",
-        # Arm-BrainCo names
-        "right_thumb_DIP_Link_object_s",
-        "right_index_DIP_Link_object_s",
-        "right_middle_DIP_Link_object_s",
-        "right_ring_DIP_Link_object_s",
-        "right_little_DIP_Link_object_s",
-    ]
-
-    contact_magnitudes = []
-    for sensor_name in sensor_names:
-        if sensor_name in env.scene.sensors:
-            contact_sensor: ContactSensor = env.scene.sensors[sensor_name]
-            contact_force = contact_sensor.data.force_matrix_w.view(env.num_envs, 3)
-            contact_mag = torch.norm(contact_force, dim=-1)
-            contact_magnitudes.append(contact_mag)
-            
-            # Print when force is detected (only for env 0 to avoid too many prints)
-            # if contact_mag[0].item() > threshold:
-            #     force_value = contact_mag[0].item()
-            #     finger_name = sensor_name.replace('_object_s', '').replace('_', ' ').title()
-            #     print(f"[CONTACT] {finger_name} detected force: {force_value:.3f} N (threshold: {threshold:.3f} N)")
-
-    if not contact_magnitudes:
-        return torch.zeros(env.num_envs, device=env.device)
-
-    all_contacts = torch.stack(contact_magnitudes, dim=1)
-    any_contact = (all_contacts > threshold).any(dim=1)
-    return any_contact.float()
-
-
-def contacts(env: ManagerBasedRLEnv, threshold: float) -> torch.Tensor:
-    """Penalize undesired contacts as the number of violations that are above a threshold."""
-
-    thumb_contact_sensor: ContactSensor = env.scene.sensors["thumb_link_3_object_s"]
-    index_contact_sensor: ContactSensor = env.scene.sensors["index_link_3_object_s"]
-    middle_contact_sensor: ContactSensor = env.scene.sensors["middle_link_3_object_s"]
-    ring_contact_sensor: ContactSensor = env.scene.sensors["ring_link_3_object_s"]
-    # check if contact force is above threshold
-    thumb_contact = thumb_contact_sensor.data.force_matrix_w.view(env.num_envs, 3)
-    index_contact = index_contact_sensor.data.force_matrix_w.view(env.num_envs, 3)
-    middle_contact = middle_contact_sensor.data.force_matrix_w.view(env.num_envs, 3)
-    ring_contact = ring_contact_sensor.data.force_matrix_w.view(env.num_envs, 3)
-
-    thumb_contact_mag = torch.norm(thumb_contact, dim=-1)
-    index_contact_mag = torch.norm(index_contact, dim=-1)
-    middle_contact_mag = torch.norm(middle_contact, dim=-1)
-    ring_contact_mag = torch.norm(ring_contact, dim=-1)
-    good_contact_cond1 = (thumb_contact_mag > threshold) & (
-        (index_contact_mag > threshold) | (middle_contact_mag > threshold) | (ring_contact_mag > threshold)
-    )
-
-    return good_contact_cond1
 
 
 def success_reward(

@@ -18,7 +18,7 @@ from . import agents
 inhand_task_entry = "BrainCo_DexHand.tasks.direct"
 
 gym.register(
-    id="BrainCo-Direct-Revo3-Repose-Cube-v0",
+    id="BrainCo-Direct-Revo3-Repose-Cube-v1",
     entry_point=f"{inhand_task_entry}.inhand_manipulation_env:InHandManipulationEnv",
     disable_env_checker=True,
     kwargs={
@@ -30,7 +30,7 @@ gym.register(
 )
 
 gym.register(
-    id="BrainCo-Direct-Revo3-Reorient-Cylinder-v0",
+    id="BrainCo-Direct-Revo3-Reorient-Cylinder-v1",
     entry_point=f"{inhand_task_entry}.reorient:InHandManipulationEnv",
     disable_env_checker=True,
     kwargs={

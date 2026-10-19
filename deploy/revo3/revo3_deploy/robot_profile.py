@@ -13,6 +13,8 @@ JOINT_DIM = 21
 class Revo3Profile:
     path: Path
     hand: str
+    asset_revision: str
+    hardware_calibrated: bool
     policy_joint_order: tuple[str, ...]
     sdk_joint_order: tuple[str, ...]
     joint_lower_policy: np.ndarray
@@ -66,6 +68,8 @@ class Revo3Profile:
         return cls(
             path=profile_path,
             hand=str(cfg.get("hand", "right")),
+            asset_revision=str(cfg["asset_revision"]),
+            hardware_calibrated=cfg.get("hardware_calibrated") is True,
             policy_joint_order=policy_order,
             sdk_joint_order=sdk_order,
             joint_lower_policy=np.asarray(lower, dtype=np.float32),

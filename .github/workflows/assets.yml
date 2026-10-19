@@ -1,0 +1,17 @@
+name: Asset contract
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: bash scripts/setup_assets.sh
+      - run: python -m pip install usd-core==26.8 numpy pyyaml
+      - run: python scripts/check_assets.py
+      - run: python -m compileall -q source scripts deploy
+      - run: python -m unittest discover -s tests -v

@@ -13,7 +13,6 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
 
 from BrainCo_DexHand.assets.revotron_bimanual_revo3 import (
-    ASSETS_DIR,
     DEFAULT_ROBOT_INIT_POS,
     DEFAULT_ROBOT_INIT_ROT,
     LEFT_FINGER_JOINT_NAMES,
@@ -24,7 +23,10 @@ from BrainCo_DexHand.assets.revotron_bimanual_revo3 import (
     RIGHT_ARM_SCALE,
     make_revotron_bimanual_revo3_cfg,
 )
+from BrainCo_DexHand.assets.description import REPO_ROOT
 from . import mdp
+
+ASSETS_DIR = REPO_ROOT / "assets"
 
 TRAINING_OBJECTS = [
     ASSETS_DIR / "urdf/objects/cube_multicolor.urdf",

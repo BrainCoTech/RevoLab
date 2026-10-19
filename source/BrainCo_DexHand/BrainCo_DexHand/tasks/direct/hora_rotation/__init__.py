@@ -9,7 +9,7 @@ import gymnasium as gym
 
 
 gym.register(
-    id="BrainCo-Direct-Revo3-HoraRotate-Ball-v0",
+    id="BrainCo-Direct-Revo3-HoraRotate-Ball-v1",
     entry_point=f"{__name__}.revo3_hand_hora_env:Revo3HandHoraEnv",
     disable_env_checker=True,
     kwargs={
@@ -18,7 +18,7 @@ gym.register(
 )
 
 gym.register(
-    id="BrainCo-Direct-Revo3-HoraRotate-Cylinder-v0",
+    id="BrainCo-Direct-Revo3-HoraRotate-Cylinder-v1",
     entry_point=f"{__name__}.revo3_hand_hora_env:Revo3HandHoraEnv",
     disable_env_checker=True,
     kwargs={

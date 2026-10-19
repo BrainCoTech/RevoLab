@@ -6,7 +6,7 @@ from . import agents
 
 
 gym.register(
-    id="BrainCo-Dynamic-Handover-Revo3-v0",
+    id="BrainCo-Dynamic-Handover-Revo3-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -18,7 +18,7 @@ gym.register(
 
 
 gym.register(
-    id="BrainCo-Dynamic-Handover-Revo3-Play-v0",
+    id="BrainCo-Dynamic-Handover-Revo3-Play-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -30,7 +30,7 @@ gym.register(
 
 
 gym.register(
-    id="BrainCo-Dynamic-Handover-Revo3-Cube-v0",
+    id="BrainCo-Dynamic-Handover-Revo3-Cube-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -42,7 +42,7 @@ gym.register(
 
 
 gym.register(
-    id="BrainCo-Dynamic-Handover-Revo3-Cube-Play-v0",
+    id="BrainCo-Dynamic-Handover-Revo3-Cube-Play-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={

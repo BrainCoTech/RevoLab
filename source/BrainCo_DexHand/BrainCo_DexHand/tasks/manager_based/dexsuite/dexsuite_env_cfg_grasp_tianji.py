@@ -24,11 +24,12 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
+from BrainCo_DexHand.assets.frames import frame_state_w
 from . import mdp
 from .adr_curriculum import CurriculumCfg as BaseCurriculumCfg
 
 
-TIANJI_PALM_BODY_NAME = "palm"
+TIANJI_PALM_BODY_NAME = "right_palm"
 _LOCAL_GROUND_USD = str(
     Path(__file__).resolve().parents[6] / "assets" / "usd" / "ground" / "default_environment.usd"
 )
@@ -39,7 +40,7 @@ def reset_object_above_palm(
     env_ids: torch.Tensor | None,
     height: float = 0.1,
     object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
-    palm_cfg: SceneEntityCfg = SceneEntityCfg("robot", body_names=TIANJI_PALM_BODY_NAME),
+    palm_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ):
     """Reset object root pose to be `height` meters above the Tianji palm (world +Z)."""
     obj = env.scene[object_cfg.name]
@@ -52,13 +53,7 @@ def reset_object_above_palm(
     else:
         env_ids = env_ids.to(device=obj.device)
 
-    body_ids, body_names = robot.find_bodies(palm_cfg.body_names, preserve_order=True)
-    if len(body_ids) != 1:
-        raise ValueError(
-            f"Expected a single palm body for {palm_cfg.body_names}, but got {len(body_ids)}: {body_names}"
-        )
-
-    palm_pos_w = robot.data.body_pos_w[env_ids, body_ids[0], :]
+    palm_pos_w = frame_state_w(robot, TIANJI_PALM_BODY_NAME)[env_ids, :3]
     root_state = obj.data.default_root_state[env_ids].clone()
     offset = root_state.new_tensor([0.0, 0.0, height])
     root_state[:, 0:3] = palm_pos_w + offset
@@ -72,7 +67,7 @@ def object_palm_distance_exceeded(
     env_ids: torch.Tensor | None = None,
     threshold: float = 0.2,
     object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
-    palm_cfg: SceneEntityCfg = SceneEntityCfg("robot", body_names=TIANJI_PALM_BODY_NAME),
+    palm_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """Terminate if object is farther than `threshold` meters from the Tianji palm."""
     obj = env.scene[object_cfg.name]
@@ -85,13 +80,7 @@ def object_palm_distance_exceeded(
     else:
         env_ids = env_ids.to(device=obj.device)
 
-    body_ids, body_names = robot.find_bodies(palm_cfg.body_names, preserve_order=True)
-    if len(body_ids) != 1:
-        raise ValueError(
-            f"Expected a single palm body for {palm_cfg.body_names}, but got {len(body_ids)}: {body_names}"
-        )
-
-    palm_pos_w = robot.data.body_pos_w[env_ids, body_ids[0], :]
+    palm_pos_w = frame_state_w(robot, TIANJI_PALM_BODY_NAME)[env_ids, :3]
     obj_pos_w = obj.data.root_pos_w[env_ids]
     dist = torch.linalg.norm(obj_pos_w - palm_pos_w, dim=-1)
     return dist > threshold
@@ -223,7 +212,7 @@ class ObservationsCfg:
         joint_pos = ObsTerm(func=mdp.joint_pos, noise=Unoise(n_min=-0.0, n_max=0.0))
         joint_vel = ObsTerm(func=mdp.joint_vel, noise=Unoise(n_min=-0.0, n_max=0.0))
         hand_tips_state_b = ObsTerm(
-            func=mdp.body_state_b,
+            func=mdp.frame_state_b,
             noise=Unoise(n_min=-0.0, n_max=0.0),
             clip=(-2.0, 2.0),
             params={

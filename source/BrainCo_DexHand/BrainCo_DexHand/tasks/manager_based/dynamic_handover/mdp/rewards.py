@@ -1,42 +1,23 @@
 from __future__ import annotations
 
 import torch
+from BrainCo_DexHand.assets.frames import frame_state_w
 
 import isaaclab.utils.math as math_utils
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.managers import SceneEntityCfg
 
-RIGHT_PALM_BODY_NAMES = ("right_palm", "right_hand_base_link", "palm", "base_link")
-LEFT_PALM_BODY_NAMES = ("left_palm", "left_hand_base_link", "palm", "base_link")
+RIGHT_PALM_FRAME = "right_palm"
+LEFT_PALM_FRAME = "left_palm"
 
 
-def _first_matching_body_pos_w(
-    robot: Articulation,
-    body_names: tuple[str, ...],
-) -> torch.Tensor:
-    for body_name in body_names:
-        try:
-            body_ids, _ = robot.find_bodies(body_name)
-        except ValueError:
-            continue
-        if body_ids:
-            return robot.data.body_pos_w[:, body_ids[0]]
-    return robot.data.root_pos_w
+def _frame_pos_w(robot: Articulation, frame_name: str) -> torch.Tensor:
+    return frame_state_w(robot, frame_name)[:, :3]
 
 
-def _first_matching_body_vel_w(
-    robot: Articulation,
-    body_names: tuple[str, ...],
-) -> torch.Tensor:
-    for body_name in body_names:
-        try:
-            body_ids, _ = robot.find_bodies(body_name)
-        except ValueError:
-            continue
-        if body_ids:
-            return robot.data.body_lin_vel_w[:, body_ids[0]]
-    return robot.data.root_lin_vel_w
+def _frame_vel_w(robot: Articulation, frame_name: str) -> torch.Tensor:
+    return frame_state_w(robot, frame_name)[:, 7:10]
 
 
 def _handover_command(env: ManagerBasedRLEnv, command_name: str) -> torch.Tensor:
@@ -62,8 +43,8 @@ def _source_receiver_palm_state(
     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     command, source_is_left, throw_gate, hold_gate, robot = _source_receiver_state(env, command_name, robot_cfg)
-    right_palm = _first_matching_body_pos_w(robot, RIGHT_PALM_BODY_NAMES)
-    left_palm = _first_matching_body_pos_w(robot, LEFT_PALM_BODY_NAMES)
+    right_palm = _frame_pos_w(robot, RIGHT_PALM_FRAME)
+    left_palm = _frame_pos_w(robot, LEFT_PALM_FRAME)
     source_palm = torch.where(source_is_left.unsqueeze(-1), left_palm, right_palm)
     receiver_palm = torch.where(source_is_left.unsqueeze(-1), right_palm, left_palm)
     return command, source_palm, receiver_palm, throw_gate, hold_gate
@@ -77,8 +58,8 @@ def _receiver_palm_velocity(
     command = _handover_command(env, command_name)
     source_is_left = command[:, 0] > 0.0
     robot: Articulation = env.scene[robot_cfg.name]
-    right_vel = _first_matching_body_vel_w(robot, RIGHT_PALM_BODY_NAMES)
-    left_vel = _first_matching_body_vel_w(robot, LEFT_PALM_BODY_NAMES)
+    right_vel = _frame_vel_w(robot, RIGHT_PALM_FRAME)
+    left_vel = _frame_vel_w(robot, LEFT_PALM_FRAME)
     return torch.where(source_is_left.unsqueeze(-1), right_vel, left_vel)
 
 
@@ -87,10 +68,10 @@ def _initial_palm_state(
     robot_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     robot: Articulation = env.scene[robot_cfg.name]
-    current_right = _first_matching_body_pos_w(robot, RIGHT_PALM_BODY_NAMES)
-    current_left = _first_matching_body_pos_w(robot, LEFT_PALM_BODY_NAMES)
-    initial_right = getattr(env, "_handover_initial_right_palm_pos_w", current_right)
-    initial_left = getattr(env, "_handover_initial_left_palm_pos_w", current_left)
+    current_right = _frame_pos_w(robot, RIGHT_PALM_FRAME)
+    current_left = _frame_pos_w(robot, LEFT_PALM_FRAME)
+    initial_right = getattr(env, "_handover_initial_right_frame_pos_w", current_right)
+    initial_left = getattr(env, "_handover_initial_left_frame_pos_w", current_left)
     initial_distance = getattr(env, "_handover_initial_hand_distance", torch.norm(current_right - current_left, p=2, dim=-1))
     return initial_right, initial_left, initial_distance
 
@@ -326,8 +307,8 @@ def hand_palm_separation_penalty(
 ) -> torch.Tensor:
     """Penalize the hands when their palm distance is more than ``distance_margin`` below reset spacing."""
     robot: Articulation = env.scene[robot_cfg.name]
-    right_palm = _first_matching_body_pos_w(robot, RIGHT_PALM_BODY_NAMES)
-    left_palm = _first_matching_body_pos_w(robot, LEFT_PALM_BODY_NAMES)
+    right_palm = _frame_pos_w(robot, RIGHT_PALM_FRAME)
+    left_palm = _frame_pos_w(robot, LEFT_PALM_FRAME)
     _, _, cached_initial_distance = _initial_palm_state(env, robot_cfg)
     distance = torch.norm(right_palm - left_palm, p=2, dim=-1)
     if initial_distance is None:
@@ -396,8 +377,8 @@ def receiver_multi_finger_surface_contacts_reward(
         "left_little_tip_Link",
     )
 
-    right_tip_positions = [_first_matching_body_pos_w(robot, (body_name,)) for body_name in right_tip_names]
-    left_tip_positions = [_first_matching_body_pos_w(robot, (body_name,)) for body_name in left_tip_names]
+    right_tip_positions = [_frame_pos_w(robot, body_name) for body_name in right_tip_names]
+    left_tip_positions = [_frame_pos_w(robot, body_name) for body_name in left_tip_names]
     right_tips = torch.stack(right_tip_positions, dim=1)
     left_tips = torch.stack(left_tip_positions, dim=1)
     receiver_tips = torch.where(source_is_left.view(-1, 1, 1), right_tips, left_tips)
@@ -467,8 +448,8 @@ def receiver_arm_return_to_default_after_catch_reward(
         "left_little_tip_Link",
     )
 
-    right_tip_positions = [_first_matching_body_pos_w(robot, (body_name,)) for body_name in right_tip_names]
-    left_tip_positions = [_first_matching_body_pos_w(robot, (body_name,)) for body_name in left_tip_names]
+    right_tip_positions = [_frame_pos_w(robot, body_name) for body_name in right_tip_names]
+    left_tip_positions = [_frame_pos_w(robot, body_name) for body_name in left_tip_names]
     right_tips = torch.stack(right_tip_positions, dim=1)
     left_tips = torch.stack(left_tip_positions, dim=1)
     receiver_tips = torch.where(source_is_left.view(-1, 1, 1), right_tips, left_tips)

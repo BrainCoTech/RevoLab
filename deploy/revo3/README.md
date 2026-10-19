@@ -1,114 +1,26 @@
-# Revo3 Sim-to-Real Deployment
+# Revo3 deployment tooling
 
-`deploy/revo3` is a lightweight, ROS-free deployment package for running exported
-ONNX policies on the real Revo3 hand through the Revo3 Python SDK.
+The v1 asset migration invalidates the previous policies, joint calibration and demonstrations. **Hardware policy control is disabled pending new policy validation, axis/zero calibration and a five-fingertip contact provider.** No real robot was connected during migration.
 
-Below is a sim-to-real deployment of `BrainCo-Direct-Revo3-HoraRotate-Cylinder-v0`.
-More tasks' sim-to-real deployments will be released in the future.
+Install the inference tools with `pip install -e deploy/revo3`; SDK access additionally requires the `[hardware]` extra (`bc-stark-sdk==1.4.5`).
 
-<p align="center">
-  <img src="../../image/sim2real.gif" alt="Revo3 sim-to-real deployment demo" width="360"/>
-</p>
-
-The runtime is closed-loop policy deployment, not trajectory replay. At each
-control step it reads measured joint positions from hardware, builds the policy
-observation history, runs ONNX inference, maps policy-order targets to SDK motor
-order, and sends MIT commands back to the hand.
-
-## Package Layout
-
-- `revo3_deploy.input_builder`: builds the policy observation and proprioception history.
-- `revo3_deploy.policy_runner`: validates `policy.yaml`, loads ONNX, and advances delta-action targets.
-- `revo3_deploy.robot_profile`: validates joint limits, joint order mappings, and offsets.
-- `revo3_deploy.sdk_hand_io`: talks to the Revo3 Python SDK (`bc-stark-sdk`).
-- `scripts/export_policy.py`: exports a supported Isaac Lab policy to ONNX plus deploy metadata.
-- `scripts/run_policy.py`: runs the closed-loop hardware or dry-run policy loop.
-
-## Install
-
-Install the deploy package:
+The supported export path is HORA Stage 2, from the repository root:
 
 ```bash
-cd deploy/revo3
-pip install -e .
+python scripts/hora/export_onnx.py --stage stage2 \
+  --checkpoint /path/to/stage2_nn/model_best.ckpt --output /path/to/policy.onnx
 ```
 
-Install the hardware extra when running on the real hand:
+Keep `params/asset_contract.json` beside the source run. Export copies that contract into the `.deploy_meta.yaml`. The runtime checks the asset revision and joint order and uses the task's recorded control limits, including HORA limit scaling.
+
+Stage 2 inputs are `obs[B,141]` and `proprio_hist[B,30,47]`: 21 normalized positions, 21 targets and 5 contact values per frame. Actor observations zero contact channels; adaptation history retains them, matching training. The inference API requires explicit contact values. The old RSL exporter fabricated a different Stage 2 contract and has been removed. RSL policies can still be exported for simulation by their RSL play script.
+
+`config/revo3_right.yaml` now contains limits from the new USD. Its zero offsets are **uncalibrated placeholders** (`hardware_calibrated: false`). The CLI supports diagnostic `--dry-run` only: it reads joint state through the SDK, uses explicitly announced zero contact placeholders, and sends no motor commands. This does not validate policy quality. The calibration flag alone does not enable control; a contact provider is also required.
 
 ```bash
-pip install -e ".[hardware]"
+python deploy/revo3/scripts/run_policy.py \
+  --onnx /path/to/policy.onnx --policy /path/to/policy.deploy_meta.yaml \
+  --profile deploy/revo3/config/revo3_right.yaml --dry-run
 ```
 
-The hardware extra installs `bc-stark-sdk==1.4.5`. If the SDK is distributed as
-a wheel in your environment, install that wheel first, then install this package.
-
-## Runtime Files
-
-Deployment uses three files:
-
-- `policy.onnx`: exported policy network.
-- `policy.yaml`: policy I/O contract, action semantics, source checkpoint, and task metadata.
-- `config/revo3_right.yaml`: SDK settings, MIT gains, joint order, joint limits, and sim-to-real offsets.
-
-The runtime does not hardcode a checkpoint. The checkpoint is only used during
-export, and the generated `policy.yaml` records it as `export.source_checkpoint`.
-At deployment time, `scripts/run_policy.py` runs whichever `policy.onnx` and
-`policy.yaml` paths you pass on the command line.
-
-## Joint Orders
-
-`config/revo3_right.yaml` stores both joint orders:
-
-- `policy_joint_order`: Isaac Lab / ONNX action order.
-- `sdk_joint_order`: Revo3 SDK motor order.
-
-Runtime commands are generated in policy order and then permuted to SDK order by
-joint name. SDK positions are read in degrees from the SDK and converted to
-radians inside the deploy package.
-
-## Export
-
-Run export inside an Isaac Lab Python environment with this package installed.
-The example below exports the published in-hand repose checkpoint:
-
-```bash
-python scripts/export_policy.py \
-  --task BrainCo-Direct-Revo3-Repose-Cube-v0 \
-  --checkpoint ../../checkpoints/BrainCo-Direct-Revo3-Repose-Cube-v0.pt \
-  --output-dir artifacts/repose_cube
-```
-
-The output directory contains `policy.onnx`, `policy.pt`, and `policy.yaml`.
-Before using a new policy on hardware, verify that the generated `policy.yaml`
-matches the expected input/output contract for the runtime.
-
-## Dry Run
-
-Use `--dry-run` first to validate that the SDK can read hand state and the ONNX
-policy can produce commands without sending commands to the motors:
-
-```bash
-python scripts/run_policy.py \
-  --onnx artifacts/repose_cube/policy.onnx \
-  --policy artifacts/repose_cube/policy.yaml \
-  --profile config/revo3_right.yaml \
-  --dry-run
-```
-
-## Hardware Run
-
-Run the same artifact on hardware by removing `--dry-run`. The serial port,
-slave ID, policy rate, and MIT gains can be supplied on the command line or
-loaded from `config/revo3_right.yaml`.
-
-```bash
-python scripts/run_policy.py \
-  --onnx artifacts/repose_cube/policy.onnx \
-  --policy artifacts/repose_cube/policy.yaml \
-  --profile config/revo3_right.yaml \
-  --port /dev/ttyUSB0 \
-  --slave-id 126
-```
-
-`/dev/ttyUSB0` and `126` are example hardware settings. Use the values for the
-target hand and controller.
+Dry-run connects to hardware for reads. Use synthetic inputs and `Stage2InputBuilder` for fully offline checks.

@@ -4,9 +4,9 @@ from collections import deque
 
 import numpy as np
 
-OBS_DIM = 126
+OBS_DIM = 141
 HIST_LEN = 30
-OBS_PER_STEP = 42
+OBS_PER_STEP = 47
 JOINT_DIM = 21
 ACTION_SCALE = 1.0 / 24.0
 
@@ -36,12 +36,12 @@ class Stage2InputBuilder:
         self.current_target: np.ndarray | None = None
         self._frames: deque[np.ndarray] = deque(maxlen=HIST_LEN)
 
-    def reset(self, joint_pos: np.ndarray, target: np.ndarray | None = None) -> dict[str, np.ndarray]:
+    def reset(self, joint_pos: np.ndarray, contacts: np.ndarray, target: np.ndarray | None = None) -> dict[str, np.ndarray]:
         joint_pos = self._as_vector(joint_pos, "joint_pos")
         if target is None:
             target = joint_pos
         target = self._clip_target(self._as_vector(target, "target"))
-        frame = self._build_frame(joint_pos, target)
+        frame = self._build_frame(joint_pos, target, contacts)
 
         self.current_target = target.copy()
         self._frames.clear()
@@ -49,11 +49,11 @@ class Stage2InputBuilder:
             self._frames.append(frame.copy())
         return self._get_policy_inputs()
 
-    def observe(self, joint_pos: np.ndarray) -> dict[str, np.ndarray]:
+    def observe(self, joint_pos: np.ndarray, contacts: np.ndarray) -> dict[str, np.ndarray]:
         joint_pos = self._as_vector(joint_pos, "joint_pos")
         if self.current_target is None:
-            return self.reset(joint_pos)
-        self._frames.append(self._build_frame(joint_pos, self.current_target))
+            return self.reset(joint_pos, contacts)
+        self._frames.append(self._build_frame(joint_pos, self.current_target, contacts))
         return self._get_policy_inputs()
 
     def action_to_target(self, action: np.ndarray) -> np.ndarray:
@@ -67,16 +67,21 @@ class Stage2InputBuilder:
         if len(self._frames) != HIST_LEN:
             raise RuntimeError(f"History not ready: expected {HIST_LEN} frames.")
         hist = np.stack(list(self._frames), axis=0).astype(np.float32)
+        actor_hist = hist[-3:].copy()
+        actor_hist[:, -5:] = 0.0  # Stage 2 actor is contact-blind; adaptation history retains contacts.
         return {
-            "obs": hist[-3:].reshape(1, OBS_DIM),
+            "obs": actor_hist.reshape(1, OBS_DIM),
             "proprio_hist": hist.reshape(1, HIST_LEN, OBS_PER_STEP),
         }
 
-    def _build_frame(self, joint_pos: np.ndarray, target: np.ndarray) -> np.ndarray:
+    def _build_frame(self, joint_pos: np.ndarray, target: np.ndarray, contacts: np.ndarray) -> np.ndarray:
         q_norm = (2.0 * joint_pos - self.joint_upper - self.joint_lower) / (
             self.joint_upper - self.joint_lower
         )
-        return np.concatenate([q_norm, target], axis=0).astype(np.float32)
+        contacts = np.asarray(contacts, dtype=np.float32)
+        if contacts.shape != (5,) or not np.isfinite(contacts).all():
+            raise ValueError("Five finite fingertip contact values are required")
+        return np.concatenate([q_norm, target, contacts], axis=0).astype(np.float32)
 
     def _clip_target(self, target: np.ndarray) -> np.ndarray:
         return np.clip(target, self.joint_lower, self.joint_upper).astype(np.float32)

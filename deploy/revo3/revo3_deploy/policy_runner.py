@@ -23,14 +23,24 @@ class Revo3PolicyRunner:
         self.policy_cfg = self._load_policy_cfg(self.policy_path)
         self.policy_contract = self._validate_policy_contract(self.policy_cfg)
 
+        asset_contract = self.policy_cfg.get("asset_contract", {})
+        if asset_contract.get("asset_revision") != profile.asset_revision:
+            raise ValueError("Policy asset revision differs from the robot profile.")
+        if self.policy_cfg.get("export", {}).get("stage") != "stage2":
+            raise ValueError("The hardware runtime requires a HORA Stage 2 export.")
+
         policy_order = tuple(self.policy_contract["joint_order_right_hand"])
         if policy_order != profile.policy_joint_order:
             raise ValueError("Policy contract joint order differs from robot profile.")
 
+        limits = np.asarray(asset_contract["control_joint_limits_rad"], dtype=np.float32)
+        order = asset_contract["joint_names"]
+        indices = [order.index(name) for name in policy_order]
+        limits = limits[indices]
         self.profile = profile
         self.builder = Stage2InputBuilder(
-            joint_lower=profile.joint_lower_policy,
-            joint_upper=profile.joint_upper_policy,
+            joint_lower=limits[:, 0],
+            joint_upper=limits[:, 1],
             joint_names=profile.policy_joint_order,
             action_scale=profile.action_scale,
         )
@@ -47,12 +57,12 @@ class Revo3PolicyRunner:
     def rate_hz(self) -> float:
         return float(self.policy_contract.get("policy_rate_hz") or self.profile.default_rate_hz)
 
-    def step(self, measured_policy_pos_rad: np.ndarray) -> np.ndarray:
+    def step(self, measured_policy_pos_rad: np.ndarray, contacts: np.ndarray) -> np.ndarray:
         if not self.initialized:
-            inputs = self.builder.reset(measured_policy_pos_rad)
+            inputs = self.builder.reset(measured_policy_pos_rad, contacts)
             self.initialized = True
         else:
-            inputs = self.builder.observe(measured_policy_pos_rad)
+            inputs = self.builder.observe(measured_policy_pos_rad, contacts)
         action = self.session.run([self.output_name], self._build_ort_feed(inputs))[0][0]
         return self.builder.action_to_target(action)
 

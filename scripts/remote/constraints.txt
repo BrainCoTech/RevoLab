@@ -1,0 +1,17 @@
+# Validated Isaac Sim 5.1 / RTX 5090 stack. Keep CUDA wheels explicit.
+# isaacsim-kernel's pip distribution requires this exact NumPy version.
+numpy==1.26.0
+torch==2.7.0+cu128
+torchvision==0.22.0+cu128
+gymnasium==1.2.1
+rsl-rl-lib==5.0.1
+onnxruntime==1.27.0
+# Preserve pkg_resources for legacy simulator extensions.
+setuptools==80.10.2
+# Keep the simulator's pins and a Ray release compatible with packaging 23.
+packaging==23.0
+click==8.1.7
+ray==2.45.0
+wandb==0.26.1
+tensordict==0.14.3
+warp-lang==1.18.0

@@ -37,11 +37,10 @@ def _resolve_isaaclab_root() -> Path:
 def _ensure_default_task(argv: list[str]) -> list[str]:
     if any(arg == "--task" or arg.startswith("--task=") for arg in argv):
         return argv
-    return [*argv, "--task", "BrainCo-Dynamic-Handover-Revo3-Cube-Play-v0"]
+    return [*argv, "--task", "BrainCo-Dynamic-Handover-Revo3-Cube-Play-v1"]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CHECKPOINT = REPO_ROOT / "checkpoints" / "dynamic_handover" / "revotron_handover.pth"
 ISAACLAB_ROOT = _resolve_isaaclab_root()
 _extend_pythonpath(ISAACLAB_ROOT, REPO_ROOT)
 
@@ -52,7 +51,7 @@ parser.add_argument("--video", action="store_true", default=False, help="Record 
 parser.add_argument("--video_length", type=int, default=200, help="Length of the recorded video (in steps).")
 parser.add_argument("--disable_fabric", action="store_true", default=False, help="Disable fabric.")
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
-parser.add_argument("--task", type=str, default="BrainCo-Dynamic-Handover-Revo3-Cube-Play-v0", help="Task name.")
+parser.add_argument("--task", type=str, default="BrainCo-Dynamic-Handover-Revo3-Cube-Play-v1", help="Task name.")
 parser.add_argument("--agent", type=str, default="rl_games_cfg_entry_point", help="RL-Games config entry.")
 parser.add_argument("--checkpoint", type=str, default=None, help="Path to model checkpoint.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment.")
@@ -93,7 +92,7 @@ import isaaclab_tasks  # noqa: F401, E402
 from isaaclab_tasks.utils import get_checkpoint_path  # noqa: E402
 from isaaclab_tasks.utils.hydra import hydra_task_config  # noqa: E402
 
-import BrainCo_DexHand  # noqa: F401, E402
+import BrainCo_DexHand.tasks  # noqa: F401, E402
 import BrainCo_DexHand.tasks.manager_based.dynamic_handover  # noqa: F401, E402
 
 
@@ -143,8 +142,6 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         if not resume_path:
             print("[INFO] Unfortunately a pre-trained checkpoint is currently unavailable for this task.")
             return
-    elif args_cli.checkpoint is None and not args_cli.use_last_checkpoint and DEFAULT_CHECKPOINT.exists():
-        resume_path = str(DEFAULT_CHECKPOINT)
     elif args_cli.checkpoint is None:
         run_dir = agent_cfg["params"]["config"].get("full_experiment_name", ".*")
         checkpoint_file = ".*" if args_cli.use_last_checkpoint else f"{agent_cfg['params']['config']['name']}.pth"
@@ -160,6 +157,9 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     concate_obs_groups = agent_cfg["params"]["env"].get("concate_obs_groups", True)
 
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
+    from BrainCo_DexHand.artifacts import validate_asset_contract
+    validate_asset_contract(env, args_cli.task, resume_path)
+
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
     if args_cli.video:

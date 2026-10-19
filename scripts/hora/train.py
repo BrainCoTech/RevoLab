@@ -4,8 +4,8 @@
 Task selection: --task ball|cylinder selects robot_cfg, object_cfg, and grasp cache.
   robot_cfg and object_cfg are chosen from assets.py (not env_cfg.py class defaults).
 
-Cache path: {grasp_cache_path}.npy under assets/grasp_cache/hora/.
-Override with --cache_file.
+Use --cache_file for a revisioned .npz grasp cache (see docs/assets.md).
+Without a cache, resets use the configured pose; grasp quality is unvalidated.
 
 Gotcha — min envs: num_envs × horizon_length must be >= minibatch_size (32768) and
   exactly divisible. Minimum num_envs = 4096. Violation raises ValueError.
@@ -15,7 +15,6 @@ Gotcha — Stage2 enable_contact_in_obs=False: actor obs contacts zeroed, but
 """
 
 import argparse
-import copy
 import datetime
 import os
 import sys
@@ -38,10 +37,10 @@ parser.add_argument('--algo', type=str, default='PPO', choices=['PPO', 'ProprioA
 parser.add_argument('--train_cfg', type=str, default='Revo3HandHora')
 parser.add_argument('--output_name', type=str, default='debug')
 parser.add_argument('--checkpoint', type=str, default='')
-parser.add_argument('--cache_file', type=str, default='', help='Override grasp cache filename under assets/grasp_cache/hora/.')
-parser.add_argument('--usd', type=str, default='', help='Override hand USD path.')
+parser.add_argument('--cache_file', type=str, default='', help='Path to a revisioned .npz grasp cache.')
 parser.add_argument('--num_envs', type=int, default=16384)
 parser.add_argument('--seed', type=int, default=42)
+parser.add_argument('--save_interval', type=int, default=None, help='Override checkpoint interval in training epochs.')
 parser.add_argument('--test', action='store_true')
 parser.add_argument('--force_overwrite', action='store_true')
 AppLauncher.add_app_launcher_args(parser)
@@ -92,10 +91,6 @@ _ALGO_MAP = {
 
 _TASK_ROBOT_CFG = {'ball': REVO3_HAND_BALL_CFG, 'cylinder': REVO3_HAND_CYLINDER_CFG}
 _TASK_OBJECT_CFG = {'ball': BALL_OBJECT_CFG, 'cylinder': CYLINDER_OBJECT_CFG}
-_TASK_CACHE = {
-    'ball': 'assets/grasp_cache/hora/revo3_right_grasp_ball',
-    'cylinder': 'assets/grasp_cache/hora/revo3_right_grasp_cylinder',
-}
 
 def _build_full_config(seed: int):
     cfg_path = (
@@ -110,6 +105,10 @@ def _build_full_config(seed: int):
         / f"{args.train_cfg}.yaml"
     )
     train_cfg = OmegaConf.load(str(cfg_path))
+    if args.save_interval is not None:
+        if args.save_interval <= 0:
+            raise ValueError('--save_interval must be positive')
+        train_cfg.ppo.save_frequency = args.save_interval
     train_cfg.algo = args.algo
     train_cfg.load_path = os.path.abspath(args.checkpoint) if args.checkpoint else ''
     train_cfg.ppo.output_name = args.output_name
@@ -135,19 +134,9 @@ def _build_full_config(seed: int):
 
 def _build_env_cfg(seed: int):
     env_cfg = Revo3HandHoraEnvCfg()
-    env_cfg.robot_cfg = _TASK_ROBOT_CFG.get(args.task, REVO3_HAND_CYLINDER_CFG)
-    env_cfg.object_cfg = _TASK_OBJECT_CFG.get(args.task, CYLINDER_OBJECT_CFG)
-    env_cfg.grasp_cache_path = _TASK_CACHE.get(args.task, 'assets/grasp_cache/hora/revo3_right_grasp_cylinder')
-    if args.cache_file:
-        env_cfg.grasp_cache_path = f"assets/grasp_cache/hora/{args.cache_file.replace('.npy', '')}"
-    if args.usd:
-        usd_path = os.path.abspath(args.usd)
-        if not os.path.exists(usd_path):
-            raise FileNotFoundError(f"--usd path not found: {usd_path}")
-        env_cfg.robot_cfg = copy.deepcopy(env_cfg.robot_cfg)
-        if env_cfg.robot_cfg.spawn is None or not hasattr(env_cfg.robot_cfg.spawn, "usd_path"):
-            raise RuntimeError("env_cfg.robot_cfg.spawn has no usd_path to override.")
-        env_cfg.robot_cfg.spawn.usd_path = usd_path
+    env_cfg.robot_cfg = _TASK_ROBOT_CFG[args.task].copy()
+    env_cfg.object_cfg = _TASK_OBJECT_CFG[args.task].copy()
+    env_cfg.grasp_cache_path = os.path.abspath(args.cache_file) if args.cache_file else None
 
     env_cfg.scene.num_envs = args.num_envs
 
@@ -198,6 +187,11 @@ def main():
         cfg=env_cfg,
         render_mode=None if getattr(args, 'headless', False) else 'human',
     )
+    from BrainCo_DexHand.artifacts import validate_asset_contract, write_asset_contract
+    task_id = f"BrainCo-Direct-Revo3-HoraRotate-{args.task.title()}-v1"
+    if args.checkpoint:
+        validate_asset_contract(env, task_id, args.checkpoint)
+    raw_env = env
     env = HoraCompatWrapper(env)
 
     # Output to Stage1's run directory
@@ -231,6 +225,7 @@ def main():
                     return
 
         _attach_env_runtime_to_config(full_config, env_cfg)
+        write_asset_contract(raw_env, task_id, output_dif)
         _save_run_metadata(output_dif, full_config)
         agent.restore_train(full_config.train.load_path)
         agent.train()

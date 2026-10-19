@@ -30,7 +30,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 async def async_main(args: argparse.Namespace) -> int:
     profile = Revo3Profile.load(args.profile)
+    if not args.dry_run and not profile.hardware_calibrated:
+        raise ValueError("This asset revision has no validated hardware calibration. Calibrate the profile before sending commands.")
     runner = Revo3PolicyRunner(args.onnx, args.policy, profile, use_gpu=args.use_gpu)
+
+    if not args.dry_run:
+        raise NotImplementedError("v1 hardware control also requires a validated five-fingertip contact provider; this CLI currently supports diagnostic dry-run only.")
+    print("Diagnostic dry-run: contact inputs are zero placeholders, not a policy performance evaluation.")
 
     sdk_cfg = profile.sdk
     io = Revo3SdkHandIO(
@@ -56,7 +62,7 @@ async def async_main(args: argparse.Namespace) -> int:
         while True:
             sdk_pos = await io.read_position_rad()
             policy_pos = profile.measured_sdk_to_policy(sdk_pos)
-            policy_target = runner.step(policy_pos)
+            policy_target = runner.step(policy_pos, contacts=np.zeros(5, dtype=np.float32))
             sdk_target = profile.target_policy_to_sdk(policy_target)
             if args.dry_run:
                 print(np.array2string(sdk_target, precision=3, suppress_small=True))

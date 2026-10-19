@@ -7,10 +7,10 @@ artifacts:
 io_contract:
   inputs:
     - name: obs
-      shape: [B, 126]
+      shape: [B, 141]
       dtype: float32
     - name: proprio_hist
-      shape: [B, 30, 42]
+      shape: [B, 30, 47]
       dtype: float32
   outputs:
     - name: action
@@ -23,3 +23,6 @@ io_contract:
   joint_order_right_hand: []
 normalization:
   baked_in_onnx: true
+
+# Filled by scripts/hora/export_onnx.py from the source run.
+asset_contract: {}

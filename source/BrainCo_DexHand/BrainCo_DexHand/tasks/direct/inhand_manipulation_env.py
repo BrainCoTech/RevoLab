@@ -14,7 +14,7 @@ import numpy as np
 import torch
 
 import isaaclab.sim as sim_utils
-from pxr import Sdf, Usd, UsdPhysics
+from BrainCo_DexHand.assets.frames import frames_state_w
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.envs import DirectRLEnv
 from isaaclab.markers import VisualizationMarkers
@@ -27,112 +27,6 @@ if TYPE_CHECKING:
 _LOCAL_GROUND_USD = str(
     Path(__file__).resolve().parents[5] / "assets" / "usd" / "ground" / "default_environment.usd"
 )
-
-
-def _resolve_env_ids(env: DirectRLEnv, env_ids: torch.Tensor | list[int] | slice | None) -> list[int]:
-    if env_ids is None or env_ids == slice(None):
-        return list(range(env.num_envs))
-    if isinstance(env_ids, torch.Tensor):
-        return env_ids.cpu().tolist()
-    return list(env_ids)
-
-
-def _collect_collision_prims(stage: Usd.Stage, link_prim_path: str) -> list[Sdf.Path]:
-    """Collect all collision prims under a link. Falls back to link prim if none found."""
-    link_prim = stage.GetPrimAtPath(link_prim_path)
-    if not link_prim.IsValid():
-        return []
-    collision_prims: list[Sdf.Path] = []
-    for prim in Usd.PrimRange(link_prim):
-        if prim.HasAPI(UsdPhysics.CollisionAPI):
-            collision_prims.append(prim.GetPath())
-    return collision_prims
-
-
-def _get_filtered_pairs_rel(prim: Usd.Prim) -> Usd.Relationship:
-    """Return a relationship to author filteredPairs (compatible across USD variants)."""
-    if hasattr(UsdPhysics, "FilteredPairsAPI"):
-        api = UsdPhysics.FilteredPairsAPI.Apply(prim)
-        if hasattr(api, "GetFilteredPairsRel"):
-            rel = api.GetFilteredPairsRel()
-            if not rel:
-                rel = api.CreateFilteredPairsRel()
-            return rel
-    rel = prim.GetRelationship("filteredPairs")
-    if not rel:
-        rel = prim.CreateRelationship("filteredPairs")
-    return rel
-
-
-def _build_link_pairs(
-    group_links: dict[str, list[str]],
-    filtered_group_pairs: list[tuple[str, str]] | None,
-    self_filtered_groups: list[str] | None,
-) -> list[tuple[str, str]]:
-    """Build unique link pairs to be filtered using FilteredPairsAPI."""
-    filtered_group_pairs = filtered_group_pairs or []
-    self_filtered_groups = self_filtered_groups or []
-
-    pairs: set[tuple[str, str]] = set()
-
-    for group_name in self_filtered_groups:
-        links = group_links.get(group_name, [])
-        for i in range(len(links)):
-            for j in range(i + 1, len(links)):
-                a, b = links[i], links[j]
-                pairs.add((a, b) if a < b else (b, a))
-
-    for group_a, group_b in filtered_group_pairs:
-        links_a = group_links.get(group_a, [])
-        links_b = group_links.get(group_b, [])
-        for a in links_a:
-            for b in links_b:
-                if a == b:
-                    continue
-                pairs.add((a, b) if a < b else (b, a))
-
-    return sorted(pairs)
-
-
-def disable_collision_pairs_filtered_direct(
-    env: DirectRLEnv,
-    env_ids: torch.Tensor | list[int] | slice | None,
-    group_links: dict[str, list[str]],
-    filtered_group_pairs: list[tuple[str, str]] | None = None,
-    self_filtered_groups: list[str] | None = None,
-    asset_root: str = "Robot",
-) -> None:
-    """Disable collisions using USD FilteredPairsAPI based on link groups."""
-    stage = sim_utils.get_current_stage()
-    if stage is None:
-        return
-
-    link_pairs = _build_link_pairs(group_links, filtered_group_pairs, self_filtered_groups)
-    if not link_pairs:
-        return
-
-    env_ns = getattr(env.scene, "env_ns", "/World/envs")
-    for env_id in _resolve_env_ids(env, env_ids):
-        env_path = f"{env_ns}/env_{env_id}"
-        robot_path = f"{env_path}/{asset_root}"
-        for link_a, link_b in link_pairs:
-            link_a_path = f"{robot_path}/{link_a}"
-            link_b_path = f"{robot_path}/{link_b}"
-            prims_a = _collect_collision_prims(stage, link_a_path) or [Sdf.Path(link_a_path)]
-            prims_b = _collect_collision_prims(stage, link_b_path) or [Sdf.Path(link_b_path)]
-
-            for prim_a_path in prims_a:
-                prim_a = stage.GetPrimAtPath(prim_a_path)
-                if not prim_a.IsValid():
-                    continue
-                rel_a = _get_filtered_pairs_rel(prim_a)
-                for prim_b_path in prims_b:
-                    prim_b = stage.GetPrimAtPath(prim_b_path)
-                    if not prim_b.IsValid():
-                        continue
-                    rel_a.AddTarget(prim_b_path)
-                    rel_b = _get_filtered_pairs_rel(prim_b)
-                    rel_b.AddTarget(prim_a_path)
 
 
 class InHandManipulationEnv(DirectRLEnv):
@@ -163,7 +57,6 @@ class InHandManipulationEnv(DirectRLEnv):
         self.finger_bodies = list()
         for body_name in self.cfg.fingertip_body_names:
             self.finger_bodies.append(self.hand.body_names.index(body_name))
-        self.finger_bodies.sort()
         self.num_fingertips = len(self.finger_bodies)
 
         # joint limits
@@ -204,24 +97,6 @@ class InHandManipulationEnv(DirectRLEnv):
         # add articulation to scene - we must register to scene to randomize with EventManager
         self.scene.articulations["robot"] = self.hand
         self.scene.rigid_objects["object"] = self.object
-        # FilteredPairsAPI (precise filtering): disable collisions between palm and MCP links
-        disable_collision_pairs_filtered_direct(
-            self,
-            env_ids=None,
-            asset_root="Robot",
-            group_links={
-                "paml": ["right_base_link"],
-                "mcp": [
-                    "right_thumb_MCP_Link",
-                    "right_index_MCP_Link",
-                    "right_middle_MCP_Link",
-                    "right_ring_MCP_Link",
-                    "right_little_MCP_Link",
-                ],
-            },
-            filtered_group_pairs=[("paml", "mcp")],
-            self_filtered_groups=[],
-        )
         # add lights
         light_cfg = sim_utils.DomeLightCfg(intensity=2000.0, color=(0.75, 0.75, 0.75))
         light_cfg.func("/World/Light", light_cfg)
@@ -407,12 +282,14 @@ class InHandManipulationEnv(DirectRLEnv):
 
     def _compute_intermediate_values(self):
         # data for hand
-        self.fingertip_pos = self.hand.data.body_pos_w[:, self.finger_bodies]
-        self.fingertip_rot = self.hand.data.body_quat_w[:, self.finger_bodies]
+        tip_names = [self.hand.body_names[i].replace("_DIP_link", "_tip_Link") for i in self.finger_bodies]
+        tip_state = frames_state_w(self.hand, tip_names)
+        self.fingertip_pos = tip_state[:, :, :3].clone()
+        self.fingertip_rot = tip_state[:, :, 3:7]
         self.fingertip_pos -= self.scene.env_origins.repeat((1, self.num_fingertips)).reshape(
             self.num_envs, self.num_fingertips, 3
         )
-        self.fingertip_velocities = self.hand.data.body_vel_w[:, self.finger_bodies]
+        self.fingertip_velocities = tip_state[:, :, 7:13]
 
         self.hand_dof_pos = self.hand.data.joint_pos
         self.hand_dof_vel = self.hand.data.joint_vel
@@ -458,8 +335,8 @@ class InHandManipulationEnv(DirectRLEnv):
                 quat_mul(self.object_rot, quat_conjugate(self.goal_rot)),
                 # fingertips
                 self.fingertip_pos.view(self.num_envs, self.num_fingertips * 3),
-                self.fingertip_rot.view(self.num_envs, self.num_fingertips * 4),
-                self.fingertip_velocities.view(self.num_envs, self.num_fingertips * 6),
+                self.fingertip_rot.reshape(self.num_envs, self.num_fingertips * 4),
+                self.fingertip_velocities.reshape(self.num_envs, self.num_fingertips * 6),
                 # actions
                 self.actions,
             ),
@@ -484,8 +361,8 @@ class InHandManipulationEnv(DirectRLEnv):
                 quat_mul(self.object_rot, quat_conjugate(self.goal_rot)),
                 # fingertips
                 self.fingertip_pos.view(self.num_envs, self.num_fingertips * 3),
-                self.fingertip_rot.view(self.num_envs, self.num_fingertips * 4),
-                self.fingertip_velocities.view(self.num_envs, self.num_fingertips * 6),
+                self.fingertip_rot.reshape(self.num_envs, self.num_fingertips * 4),
+                self.fingertip_velocities.reshape(self.num_envs, self.num_fingertips * 6),
                 self.cfg.force_torque_obs_scale
                 * self.fingertip_force_sensors.view(self.num_envs, self.num_fingertips * 6),
                 # actions

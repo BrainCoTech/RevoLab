@@ -13,7 +13,7 @@ class DexsuiteRevo3PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     """PPO runner configuration for Revo3 dexsuite tasks."""
 
     num_steps_per_env = 32
-    obs_groups = {"policy": ["policy", "proprio", "perception"], "critic": ["policy", "proprio", "perception"]}
+    obs_groups = {"actor": ["policy", "proprio", "perception"], "critic": ["policy", "proprio", "perception"]}
     max_iterations = 15000
     save_interval = 250
     experiment_name = "dexsuite_tianji"

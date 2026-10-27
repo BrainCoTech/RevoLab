@@ -5,6 +5,29 @@ Robot descriptions are supplied by the pinned [brainco-description](https://gith
 
 The current task suite is **v1**, using the 20261014 asset release. This training campaign is complete: all six tasks have successful simulation demos below, and all campaign training has stopped. Completion means a successful demonstration was recorded for each task; it does not require every rollout to succeed. No v1 pretrained weights or validated hardware deployment results are published yet.
 
+## Version history and v0 compatibility
+
+The earlier README, simulation demos, pretrained checkpoints and deployment instructions are preserved on the [v0 branch](https://github.com/BrainCoTech/RevoLab/tree/v0), at commit [`bc2f874`](https://github.com/BrainCoTech/RevoLab/commit/bc2f874a61f386712374888675e6756316d0aadc) (`bc2f874a61f386712374888675e6756316d0aadc`). See the [original v0 README](https://github.com/BrainCoTech/RevoLab/blob/bc2f874a61f386712374888675e6756316d0aadc/README.md) for those results and their setup instructions.
+
+The v1 demos below come from retraining all six tasks with the updated assets. The pretrained checkpoints published with v0 belong to the legacy task suite; they are not the policies shown in the current demos.
+
+| Version | Robot assets and tasks | Policy artifacts |
+| --- | --- | --- |
+| `v0` (historical snapshot) | Robot assets bundled under `assets/`; `-v0` task IDs | Original pretrained checkpoints and HORA grasp caches |
+| `main` (v1) | Pinned `brainco-description` 20261014 release; `-v1` task IDs | Retrained policies shown below; pretrained weights not yet published |
+
+**v0 checkpoints and grasp caches are incompatible with v1.** The asset update changed finger axes and limits, inertial frames, collision geometry and fixed-joint merging, affecting task dynamics and observations. Renaming a task ID or copying an old checkpoint into `main` does not migrate a policy. Use v0 assets, code and configurations together when reproducing the earlier results. New v1 runs require matching `params/asset_contract.json` metadata; see the [asset contract and migration details](docs/assets.md).
+
+To use the historical version in a separate checkout:
+
+```bash
+git clone --branch v0 https://github.com/BrainCoTech/RevoLab.git RevoLab-v0
+cd RevoLab-v0
+git checkout --detach bc2f874a61f386712374888675e6756316d0aadc
+```
+
+Follow the README in that checkout for installation, checkpoint downloads and evaluation. Its deployment instructions describe the v0 setup; validated v1 hardware deployment results remain pending.
+
 ## Tasks
 
 | Task ID | Training entry point | Robot asset | Policy status |
